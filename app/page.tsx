@@ -1,4 +1,7 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import InputText from "@/components/ui/input-text";
+import { Label } from "@/components/ui/label";
 
 export default function Page() {
   return (
@@ -13,6 +16,16 @@ export default function Page() {
         <div className="font-mono text-xs text-muted-foreground">
           (Press <kbd>d</kbd> to toggle dark mode)
         </div>
+
+        <Label isRequired>Username</Label>
+        <Input placeholder="Username" />
+
+        <InputText
+          required
+          label="Username"
+          placeholder="Username"
+          errorMessage="Username is required"
+        />
       </div>
     </div>
   );
