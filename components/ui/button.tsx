@@ -2,6 +2,8 @@ import { type VariantProps, cva } from "class-variance-authority";
 import { Slot } from "radix-ui";
 import * as React from "react";
 
+import { Spinner } from "./spinner";
+
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -41,26 +43,49 @@ const buttonVariants = cva(
   },
 );
 
+type ButtonProps = React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+    isLoading?: boolean;
+    loadingText?: string;
+    startContent?: React.ReactNode;
+    endContent?: React.ReactNode;
+  };
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  disabled,
+  isLoading = false,
+  loadingText,
+  startContent,
+  endContent,
+  children,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-  }) {
+}: ButtonProps) {
   const Comp = asChild ? Slot.Root : "button";
+  const isDisabled = disabled || isLoading;
 
   return (
     <Comp
       data-slot="button"
       data-variant={variant}
       data-size={size}
+      data-loading={isLoading || undefined}
+      aria-busy={isLoading || undefined}
+      aria-disabled={asChild && isDisabled ? true : undefined}
+      disabled={!asChild ? isDisabled : undefined}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {isLoading ? <Spinner /> : startContent}
+
+      {isLoading && loadingText ? loadingText : children}
+
+      {endContent}
+    </Comp>
   );
 }
 

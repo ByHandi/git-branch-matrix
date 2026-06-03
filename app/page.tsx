@@ -1,3 +1,5 @@
+import { ArrowRightIcon, PlusIcon } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/date-picker";
 import DateRangePicker from "@/components/ui/date-range-picker";
@@ -15,7 +17,15 @@ export default function Page() {
           <h1 className="font-medium">Project ready!</h1>
           <p>You may now add components and start building.</p>
           <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button startContent={<PlusIcon />}>Create</Button>
+            <Button endContent={<ArrowRightIcon />} variant="outline">
+              Continue
+            </Button>
+            <Button isLoading loadingText="Saving...">
+              Save
+            </Button>
+          </div>
         </div>
         <div className="font-mono text-xs text-muted-foreground">
           (Press <kbd>d</kbd> to toggle dark mode)

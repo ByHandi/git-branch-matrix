@@ -62,9 +62,11 @@ Custom form components:
 Supporting primitives:
 
 - `Button`
+- `Icon`
 - `Input`
 - `InputGroup`
 - `Textarea`
+- `Spinner`
 - `Field`
 - `Label`
 - `Calendar`
@@ -77,14 +79,28 @@ Supporting primitives:
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/date-picker";
 import DateRangePicker from "@/components/ui/date-range-picker";
+import Icon from "@/components/ui/icon";
 import InputFormattedNumber from "@/components/ui/input-formatted-number";
 import InputNumber from "@/components/ui/input-number";
 import InputText from "@/components/ui/input-text";
+import { Spinner } from "@/components/ui/spinner";
 ```
 
 Example:
 
 ```tsx
+<Button startContent={<Icon name="plus" />}>Create</Button>
+
+<Button endContent={<Icon name="arrow-right" />} variant="outline">
+  Continue
+</Button>
+
+<Button isLoading loadingText="Saving...">
+  Save
+</Button>
+
+<Spinner />
+
 <InputText required label="Username" placeholder="Username" />
 
 <InputNumber required hideStepper label="Amount" min={0} step={1} startContent="Rp" />
