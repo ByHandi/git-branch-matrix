@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import DatePicker from "@/components/ui/date-picker";
+import DateRangePicker from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import InputFormattedNumber from "@/components/ui/input-formatted-number";
 import InputNumber from "@/components/ui/input-number";
@@ -47,6 +49,15 @@ export default function Page() {
           startContent="Rp"
           defaultValue={1250000.5}
           // errorMessage="Formatted amount is required"
+        />
+
+        <DatePicker required label="Date" />
+
+        <DateRangePicker
+          required
+          label="Period"
+          dateFormat="dd MMM yyyy"
+          placeholder="dd MMM yyyy"
         />
       </div>
     </div>
