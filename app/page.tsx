@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import InputFormattedNumber from "@/components/ui/input-formatted-number";
+import InputNumber from "@/components/ui/input-number";
 import InputText from "@/components/ui/input-text";
 import { Label } from "@/components/ui/label";
 
@@ -25,6 +27,26 @@ export default function Page() {
           label="Username"
           placeholder="Username"
           errorMessage="Username is required"
+        />
+
+        <InputNumber
+          required
+          hideStepper
+          label="Amount"
+          placeholder="0"
+          min={0}
+          step={1}
+          startContent="Rp"
+          errorMessage="Amount is required"
+        />
+
+        <InputFormattedNumber
+          required
+          label="Formatted amount"
+          placeholder="0"
+          startContent="Rp"
+          defaultValue={1250000.5}
+          // errorMessage="Formatted amount is required"
         />
       </div>
     </div>
