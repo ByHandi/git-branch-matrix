@@ -8,6 +8,7 @@ import InputCheckbox from "@/components/ui/input-checkbox";
 import InputCheckboxGroup from "@/components/ui/input-checkbox-group";
 import InputFormattedNumber from "@/components/ui/input-formatted-number";
 import InputNumber from "@/components/ui/input-number";
+import InputRadioGroup from "@/components/ui/input-radio-group";
 import InputSelect from "@/components/ui/input-select";
 import InputText from "@/components/ui/input-text";
 import { Label } from "@/components/ui/label";
@@ -92,6 +93,18 @@ export default function Page() {
             { label: "Read", value: "read" },
             { label: "Update", value: "update" },
             { label: "Delete", value: "delete", disabled: true },
+          ]}
+        />
+
+        <InputRadioGroup
+          required
+          label="Visibility"
+          description="Choose who can see this item."
+          defaultValue="public"
+          options={[
+            { label: "Public", value: "public" },
+            { label: "Private", value: "private" },
+            { label: "Team only", value: "team", disabled: true },
           ]}
         />
 
