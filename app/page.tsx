@@ -1,5 +1,7 @@
 import { ArrowRightIcon, PlusIcon } from "lucide-react";
 
+import PageClient from "./page-client";
+
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/date-picker";
 import DateRangePicker from "@/components/ui/date-range-picker";
@@ -34,6 +36,8 @@ export default function Page() {
         <div className="font-mono text-xs text-muted-foreground">
           (Press <kbd>d</kbd> to toggle dark mode)
         </div>
+
+        <PageClient />
 
         <Label isRequired>Username</Label>
         <Input placeholder="Username" />
