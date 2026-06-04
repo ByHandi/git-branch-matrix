@@ -5,15 +5,15 @@ import PageClient from "./page-client";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/date-picker";
 import DateRangePicker from "@/components/ui/date-range-picker";
-import { Input } from "@/components/ui/input";
 import InputCheckbox from "@/components/ui/input-checkbox";
 import InputCheckboxGroup from "@/components/ui/input-checkbox-group";
+import InputCombobox from "@/components/ui/input-combobox";
+import InputComboboxMultiple from "@/components/ui/input-combobox-multiple";
 import InputFormattedNumber from "@/components/ui/input-formatted-number";
 import InputNumber from "@/components/ui/input-number";
 import InputRadioGroup from "@/components/ui/input-radio-group";
 import InputSelect from "@/components/ui/input-select";
 import InputText from "@/components/ui/input-text";
-import { Label } from "@/components/ui/label";
 
 export default function Page() {
   return (
@@ -39,15 +39,7 @@ export default function Page() {
 
         <PageClient />
 
-        <Label isRequired>Username</Label>
-        <Input placeholder="Username" />
-
-        <InputText
-          required
-          label="Username"
-          placeholder="Username"
-          errorMessage="Username is required"
-        />
+        <InputText required label="Username" placeholder="Username" />
 
         <InputNumber
           required
@@ -78,6 +70,32 @@ export default function Page() {
             { label: "Active", value: "active" },
             { label: "Inactive", value: "inactive" },
             { label: "Archived", value: "archived", disabled: true },
+          ]}
+        />
+
+        <InputCombobox
+          required
+          label="Assignee"
+          placeholder="Select assignee"
+          defaultValue="jane"
+          options={[
+            { label: "Jane Doe", value: "jane" },
+            { label: "John Smith", value: "john" },
+            { label: "Sarah Connor", value: "sarah" },
+            { label: "Archived User", value: "archived", disabled: true },
+          ]}
+        />
+
+        <InputComboboxMultiple
+          required
+          label="Reviewers"
+          placeholder="Select reviewers"
+          defaultValue={["jane", "john"]}
+          options={[
+            { label: "Jane Doe", value: "jane" },
+            { label: "John Smith", value: "john" },
+            { label: "Sarah Connor", value: "sarah" },
+            { label: "Archived User", value: "archived", disabled: true },
           ]}
         />
 

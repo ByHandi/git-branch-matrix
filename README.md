@@ -58,6 +58,8 @@ Custom form components:
 - `InputNumber`
 - `InputFormattedNumber`
 - `InputSelect`
+- `InputCombobox`
+- `InputComboboxMultiple`
 - `InputCheckbox`
 - `InputCheckboxGroup`
 - `InputRadioGroup`
@@ -71,6 +73,7 @@ Supporting primitives:
 - `Input`
 - `InputGroup`
 - `Select`
+- `Combobox`
 - `Checkbox`
 - `RadioGroup`
 - `Textarea`
@@ -90,6 +93,8 @@ import DateRangePicker from "@/components/ui/date-range-picker";
 import Icon from "@/components/ui/icon";
 import InputCheckbox from "@/components/ui/input-checkbox";
 import InputCheckboxGroup from "@/components/ui/input-checkbox-group";
+import InputCombobox from "@/components/ui/input-combobox";
+import InputComboboxMultiple from "@/components/ui/input-combobox-multiple";
 import InputFormattedNumber from "@/components/ui/input-formatted-number";
 import InputNumber from "@/components/ui/input-number";
 import InputRadioGroup from "@/components/ui/input-radio-group";
@@ -129,6 +134,26 @@ Example:
   options={[
     { label: "Active", value: "active" },
     { label: "Inactive", value: "inactive" },
+  ]}
+/>
+
+<InputCombobox
+  label="Assignee"
+  placeholder="Select assignee"
+  defaultValue="jane"
+  options={[
+    { label: "Jane Doe", value: "jane" },
+    { label: "John Smith", value: "john" },
+  ]}
+/>
+
+<InputComboboxMultiple
+  label="Reviewers"
+  placeholder="Select reviewers"
+  defaultValue={["jane", "john"]}
+  options={[
+    { label: "Jane Doe", value: "jane" },
+    { label: "John Smith", value: "john" },
   ]}
 />
 
