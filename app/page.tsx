@@ -13,6 +13,7 @@ import InputFormattedNumber from "@/components/ui/input-formatted-number";
 import InputNumber from "@/components/ui/input-number";
 import InputRadioGroup from "@/components/ui/input-radio-group";
 import InputSelect from "@/components/ui/input-select";
+import InputSlider from "@/components/ui/input-slider";
 import InputSwitch from "@/components/ui/input-switch";
 import InputText from "@/components/ui/input-text";
 import InputTextarea from "@/components/ui/input-textarea";
@@ -68,6 +69,26 @@ export default function Page() {
           startContent="Rp"
           defaultValue={1250000.5}
           // errorMessage="Formatted amount is required"
+        />
+
+        <InputSlider
+          required
+          label="Progress"
+          description="Adjust the progress value."
+          defaultValue={[45]}
+          min={0}
+          max={100}
+          step={5}
+          showValue
+        />
+
+        <InputSlider
+          label="Budget range"
+          defaultValue={[20, 80]}
+          min={0}
+          max={100}
+          step={5}
+          showValue
         />
 
         <InputSelect
