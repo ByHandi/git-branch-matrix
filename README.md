@@ -55,6 +55,7 @@ Base shadcn-style components live in `components/ui`.
 Custom form components:
 
 - `InputText`
+- `InputTextarea`
 - `InputNumber`
 - `InputFormattedNumber`
 - `InputSelect`
@@ -100,6 +101,7 @@ import InputNumber from "@/components/ui/input-number";
 import InputRadioGroup from "@/components/ui/input-radio-group";
 import InputSelect from "@/components/ui/input-select";
 import InputText from "@/components/ui/input-text";
+import InputTextarea from "@/components/ui/input-textarea";
 import { Spinner } from "@/components/ui/spinner";
 ```
 
@@ -119,6 +121,8 @@ Example:
 <Spinner />
 
 <InputText required label="Username" placeholder="Username" />
+
+<InputTextarea label="Description" placeholder="Write a description..." />
 
 <InputNumber required hideStepper label="Amount" min={0} step={1} startContent="Rp" />
 

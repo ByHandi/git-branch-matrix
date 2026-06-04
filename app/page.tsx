@@ -14,6 +14,7 @@ import InputNumber from "@/components/ui/input-number";
 import InputRadioGroup from "@/components/ui/input-radio-group";
 import InputSelect from "@/components/ui/input-select";
 import InputText from "@/components/ui/input-text";
+import InputTextarea from "@/components/ui/input-textarea";
 
 export default function Page() {
   return (
@@ -40,6 +41,13 @@ export default function Page() {
         <PageClient />
 
         <InputText required label="Username" placeholder="Username" />
+
+        <InputTextarea
+          required
+          label="Description"
+          placeholder="Write a description..."
+          description="Keep it short and clear."
+        />
 
         <InputNumber
           required
