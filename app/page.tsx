@@ -13,6 +13,7 @@ import InputFormattedNumber from "@/components/ui/input-formatted-number";
 import InputNumber from "@/components/ui/input-number";
 import InputRadioGroup from "@/components/ui/input-radio-group";
 import InputSelect from "@/components/ui/input-select";
+import InputSwitch from "@/components/ui/input-switch";
 import InputText from "@/components/ui/input-text";
 import InputTextarea from "@/components/ui/input-textarea";
 
@@ -111,6 +112,12 @@ export default function Page() {
           required
           label="Accept terms"
           description="You agree to the terms and privacy policy."
+        />
+
+        <InputSwitch
+          label="Email notifications"
+          description="Receive email updates for important activity."
+          defaultChecked
         />
 
         <InputCheckboxGroup
