@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 
 import "server-only";
 
-import { type RepoRow, notesFor } from "@/lib/db";
+import { type RepoRow, type RepoSettings, notesFor, toSettings } from "@/lib/db";
 import { GitError, type RepoModel, buildModel, lastFetchedAt } from "@/lib/git";
 
 export type RepoView = RepoModel & {
@@ -11,13 +11,19 @@ export type RepoView = RepoModel & {
   configuredEnvs: string[];
   /** last `git fetch` in this clone; null when it has never been fetched */
   fetchedAt: string | null;
+  settings: RepoSettings;
 };
+
+const fromRow = (row: RepoRow) => ({
+  repoId: row.id,
+  repoName: row.name,
+  configuredEnvs: row.envs,
+  settings: toSettings(row),
+});
 
 function failed(row: RepoRow, message: string): RepoView {
   return {
-    repoId: row.id,
-    repoName: row.name,
-    configuredEnvs: row.envs,
+    ...fromRow(row),
     fetchedAt: null,
     repo: row.path,
     remote: null,
@@ -44,7 +50,7 @@ export async function loadRepo(row: RepoRow): Promise<RepoView> {
       doneEnvs: row.done_envs,
       overlay,
     });
-    return { ...model, repoId: row.id, repoName: row.name, configuredEnvs: row.envs, fetchedAt };
+    return { ...model, ...fromRow(row), fetchedAt };
   } catch (error) {
     if (error instanceof GitError) return failed(row, error.message);
     throw error;

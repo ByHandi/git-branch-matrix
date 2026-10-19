@@ -427,19 +427,16 @@ export async function buildModel(
 }
 
 /** Env branch names we look for when guessing a repo's pipeline, in pipeline order. */
-const ENV_CANDIDATES = [
-  "development",
-  "develop",
-  "dev",
-  "staging",
-  "stage",
-  "uat",
-  "release",
-  "preprod",
-  "main",
-  "master",
-  "production",
-  "prod",
+// One entry per pipeline stage, earliest first; each lists the names that stage goes by.
+// Only true synonyms share an entry: main → production is a real two-stage pipeline.
+const ENV_STAGES = [
+  ["development", "develop", "dev"],
+  ["staging", "stage"],
+  ["uat"],
+  ["release"],
+  ["preprod"],
+  ["main", "master"],
+  ["production", "prod"],
 ];
 
 export type RepoProbe = {
@@ -459,9 +456,15 @@ export async function probeRepo(repoPath: string): Promise<RepoProbe> {
     .filter(Boolean);
   const remote = remotes.includes("origin") ? "origin" : (remotes[0] ?? "origin");
 
-  const branches = [...(await listBranches(top, remote)).keys()].sort();
-  const present = new Set(branches);
-  const guessedEnvs = ENV_CANDIDATES.filter((e) => present.has(e));
+  const refs = await listBranches(top, remote);
+  const branches = [...refs.keys()].sort();
+  // A repo with both `dev` and `development` (or `main` and `master`) uses one of
+  // them; the other is a leftover. Take whichever saw the latest commit.
+  const guessedEnvs = ENV_STAGES.flatMap((aliases) => {
+    const found = aliases.flatMap((name) => refs.get(name) ?? []);
+    found.sort((a, b) => b.date.localeCompare(a.date));
+    return found.length ? [found[0].name] : [];
+  });
 
   return { toplevel: top, remote, remotes, branches, guessedEnvs };
 }

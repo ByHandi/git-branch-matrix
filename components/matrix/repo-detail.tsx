@@ -12,7 +12,7 @@ import TicketSheet from "./ticket-sheet";
 import type { Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
 
-function RepoDetail({ model }: { model: RepoView }) {
+function RepoDetail({ model, groups }: { model: RepoView; groups: string[] }) {
   useRegisterRepo(model);
   const { query, pendingOnly, authors, setAuthors } = useMatrix();
   // The ticket outlives `open` so the sheet keeps its content while it animates shut.
@@ -44,6 +44,7 @@ function RepoDetail({ model }: { model: RepoView }) {
           setOpen(true);
         }}
         onAuthorClick={(author) => setAuthors([author])}
+        groups={groups}
       />
 
       <TicketSheet

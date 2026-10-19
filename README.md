@@ -15,6 +15,9 @@ npm run dev              # http://localhost:4321
 
 Override the port with `PORT=5000 npm run dev`.
 
+`db/schema.sql` is idempotent and carries its own migrations — after pulling, run `npm run db:init`
+again (or pipe the file into `psql` for a Postgres in Docker).
+
 ### Docker / OrbStack
 
 ```sh

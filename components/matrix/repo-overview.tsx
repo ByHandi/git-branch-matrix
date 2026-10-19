@@ -3,11 +3,20 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { ChevronRightIcon } from "lucide-react";
-import { Fragment, useMemo } from "react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import {
+  Fragment,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import FetchedBadge from "./fetched-badge";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
+import { PinToggle } from "./repo-toggles";
 import { ago, filterTickets, freshness, openByStage } from "./shared";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,12 +33,55 @@ import {
 import type { RepoView } from "@/lib/overview";
 import { cn } from "@/lib/utils";
 
+const COLUMNS = 6;
+const COLLAPSED_KEY = "gbm.collapsed-sections";
+
+/** Which overview sections are folded shut. Remembered per browser — a convenience, not data. */
+const CollapseContext = createContext<{
+  collapsed: Set<string>;
+  toggle: (section: string) => void;
+}>({ collapsed: new Set(), toggle: () => {} });
+
+function useCollapsedSections() {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // read after mount: the server render has no storage, so it must start expanded
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]");
+      if (Array.isArray(saved)) setCollapsed(new Set(saved.map(String)));
+    } catch {}
+  }, []);
+
+  const toggle = useCallback((section: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(section)) next.add(section);
+      try {
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  return { collapsed, toggle };
+}
+
 /**
  * One row per repo. The rows arrive as `children` because each one streams in
  * behind its own Suspense boundary — a slow repo no longer holds up the page.
  */
-export function RepoOverview({ total, children }: { total: number; children: React.ReactNode }) {
+export function RepoOverview({
+  total,
+  archived,
+  children,
+}: {
+  total: number;
+  archived: number;
+  children: React.ReactNode;
+}) {
   const { models, query, pendingOnly, authors, filtering, clearFilters } = useMatrix();
+  const sections = useCollapsedSections();
 
   const { open, hidden, stale } = useMemo(() => {
     let open = 0;
@@ -48,13 +100,18 @@ export function RepoOverview({ total, children }: { total: number; children: Rea
 
   return (
     <div className="flex flex-col gap-3 p-6">
-      <p className="text-xs text-muted-foreground">
-        {total} repo{total === 1 ? "" : "s"} · {open} open{filtering && " matching the filter"}
-        {loading > 0 && ` · reading ${loading} from git…`}
-        {stale > 0 && (
-          <span className="text-destructive"> · {stale} not fetched in over a week</span>
-        )}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <p>
+          {total} repo{total === 1 ? "" : "s"} · {open} open{filtering && " matching the filter"}
+          {loading > 0 && ` · reading ${loading} from git…`}
+          {stale > 0 && (
+            <span className="text-destructive"> · {stale} not fetched in over a week</span>
+          )}
+        </p>
+        <Link href="/manage" className="ml-auto hover:text-foreground hover:underline">
+          Manage repos{archived > 0 && ` · ${archived} archived`}
+        </Link>
+      </div>
 
       <section className="rounded-xl border bg-card">
         <Table>
@@ -65,10 +122,12 @@ export function RepoOverview({ total, children }: { total: number; children: Rea
               <TableHead>Where open tickets are</TableHead>
               <TableHead>Updated</TableHead>
               <TableHead>Fetched</TableHead>
-              <TableHead className="w-8" />
+              <TableHead className="w-16" />
             </TableRow>
           </TableHeader>
-          <TableBody>{children}</TableBody>
+          <CollapseContext.Provider value={sections}>
+            <TableBody>{children}</TableBody>
+          </CollapseContext.Provider>
         </Table>
 
         {hidden > 0 && (
@@ -86,6 +145,59 @@ export function RepoOverview({ total, children }: { total: number; children: Rea
   );
 }
 
+/** Heading row for Pinned / a group / Other. Folds its rows away on click. */
+export function SectionHeading({
+  section,
+  label,
+  repoIds,
+}: {
+  section: string;
+  label: string;
+  repoIds: number[];
+}) {
+  const { collapsed, toggle } = useContext(CollapseContext);
+  const { models, query, pendingOnly, authors, filtering } = useMatrix();
+  const isCollapsed = collapsed.has(section);
+
+  const { visible, open } = useMemo(() => {
+    const ids = new Set(repoIds);
+    let visible = 0;
+    let open = 0;
+    for (const model of models) {
+      if (!ids.has(model.repoId)) continue;
+      const tickets = filterTickets(model, query, pendingOnly, authors);
+      if (!filtering || tickets.length) visible++;
+      open += tickets.filter((t) => !t.done).length;
+    }
+    return { visible, open };
+  }, [models, repoIds, query, pendingOnly, authors, filtering]);
+
+  // every repo in it is loaded and filtered out: the heading alone is just noise
+  const loaded = models.filter((m) => repoIds.includes(m.repoId)).length;
+  if (filtering && loaded === repoIds.length && visible === 0) return null;
+
+  const Icon = isCollapsed ? ChevronRightIcon : ChevronDownIcon;
+
+  return (
+    <TableRow className="bg-muted/40 hover:bg-muted/60">
+      <TableCell colSpan={COLUMNS} className="py-1.5 pl-3">
+        <button
+          type="button"
+          aria-expanded={!isCollapsed}
+          onClick={() => toggle(section)}
+          className="flex w-full items-center gap-1.5 text-left text-xs"
+        >
+          <Icon className="size-3.5 text-muted-foreground" />
+          <span className="font-semibold">{label}</span>
+          <span className="text-muted-foreground">
+            {repoIds.length} repo{repoIds.length === 1 ? "" : "s"} · {open} open
+          </span>
+        </button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 function RepoName({ name, path, href }: { name: string; path: string; href?: string }) {
   return (
     <TableCell className="py-2.5 pl-4">
@@ -100,14 +212,17 @@ function RepoName({ name, path, href }: { name: string; path: string; href?: str
       ) : (
         <span className="text-sm font-semibold">{name}</span>
       )}
-      <div className="font-mono text-xs text-muted-foreground">{path}</div>
+      <div title={path} className="max-w-72 truncate font-mono text-xs text-muted-foreground">
+        {path}
+      </div>
     </TableCell>
   );
 }
 
-export function RepoRow({ model }: { model: RepoView }) {
+export function RepoRow({ model, section }: { model: RepoView; section: string }) {
   useRegisterRepo(model);
   const router = useRouter();
+  const { collapsed } = useContext(CollapseContext);
   const { query, pendingOnly, authors, filtering } = useMatrix();
 
   const tickets = useMemo(
@@ -116,6 +231,7 @@ export function RepoRow({ model }: { model: RepoView }) {
   );
   const stages = useMemo(() => openByStage(model, tickets), [model, tickets]);
 
+  if (collapsed.has(section)) return null;
   if (filtering && tickets.length === 0) return null;
 
   const href = `/repo/${model.repoId}`;
@@ -126,7 +242,7 @@ export function RepoRow({ model }: { model: RepoView }) {
   );
 
   return (
-    <TableRow className="cursor-pointer" onClick={() => router.push(href)}>
+    <TableRow className="group cursor-pointer" onClick={() => router.push(href)}>
       <RepoName name={model.repoName} path={model.repo} href={href} />
 
       <TableCell className="text-right whitespace-nowrap tabular-nums">
@@ -184,14 +300,34 @@ export function RepoRow({ model }: { model: RepoView }) {
       <TableCell>{!model.error && <FetchedBadge fetchedAt={model.fetchedAt} />}</TableCell>
 
       <TableCell className="pr-4">
-        <ChevronRightIcon className="size-4 text-muted-foreground" />
+        <div className="flex items-center justify-end gap-1">
+          <PinToggle
+            settings={model.settings}
+            className={cn(
+              !model.settings.pinned &&
+                "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            )}
+          />
+          <ChevronRightIcon className="size-4 text-muted-foreground" />
+        </div>
       </TableCell>
     </TableRow>
   );
 }
 
 /** Shown while a repo is still being read from git — name and path are known up front. */
-export function RepoRowSkeleton({ name, path }: { name: string; path: string }) {
+export function RepoRowSkeleton({
+  name,
+  path,
+  section,
+}: {
+  name: string;
+  path: string;
+  section: string;
+}) {
+  const { collapsed } = useContext(CollapseContext);
+  if (collapsed.has(section)) return null;
+
   return (
     <TableRow>
       <RepoName name={name} path={path} />

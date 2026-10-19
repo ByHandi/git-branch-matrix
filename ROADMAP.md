@@ -24,20 +24,22 @@ whole table, stacked vertically — fine for 2–3 repos, heavy past 10.
 - [x] **Stale-data indicator.** The app never runs `git fetch` (by design), and in Docker the repos
       are mounted read-only, so a repo you forgot to fetch silently goes stale. Read the mtime of
       `.git/FETCH_HEAD` (no write needed) and show a badge: yellow > 1 day, red > 1 week.
-- [ ] **Follow-up: smarter env guessing.** Scanning `~/projects` showed repos guessed as
+- [x] **Follow-up: smarter env guessing.** Scanning `~/projects` showed repos guessed as
       `development › dev › main` — both `dev` and `development` exist and both are taken as envs.
-      Prefer one name per stage when several aliases are present.
+      Prefer one name per stage when several aliases are present. Done: true synonyms
+      (`dev`/`develop`/`development`, `staging`/`stage`, `main`/`master`, `production`/`prod`)
+      collapse to whichever saw the latest commit; distinct stages like main → production stay.
 
-## Phase 3 — Organising repos
+## Phase 3 — Organising repos ✅
 
-- [ ] **Cross-repo view by ticket.** One Jira ticket often spans FE + BE + services. A "By ticket"
+- [x] **Cross-repo view by ticket.** One Jira ticket often spans FE + BE + services. A "By ticket"
       view shows `ABC-123` with its env status in every repo on one row.
-- [ ] **Groups / tags and pinning.** Group related repos (e.g. all `telescope-*` services) into a
+- [x] **Groups / tags and pinning.** Group related repos (e.g. all `telescope-*` services) into a
       collapsible section; pin frequently used repos to the top. Drag-to-reorder backed by the
       existing, currently unused `repo.sort_order` column.
-- [ ] **Archive instead of only Remove.** `repo.archived` and `listRepos(includeArchived)` already
+- [x] **Archive instead of only Remove.** `repo.archived` and `listRepos(includeArchived)` already
       exist. Archiving hides a repo but keeps its branch notes; Remove deletes them.
-- [ ] **Edit repo config.** Only Add and Remove exist today, so changing envs or the ticket pattern
+- [x] **Edit repo config.** Only Add and Remove exist today, so changing envs or the ticket pattern
       means remove + re-add, which drops the branch notes.
 
 ## Quick wins

@@ -45,3 +45,7 @@ create trigger branch_note_touch before update on branch_note
 
 -- migration for databases created before done_envs existed
 alter table repo add column if not exists done_envs text[] not null default '{release,main}';
+
+-- migration: grouping and pinning on the overview
+alter table repo add column if not exists group_name text;
+alter table repo add column if not exists pinned boolean not null default false;

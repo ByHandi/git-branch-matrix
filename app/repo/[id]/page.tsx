@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import RepoDetail from "@/components/matrix/repo-detail";
-import { getRepo } from "@/lib/db";
+import { getRepo, groupNames, listRepos } from "@/lib/db";
 import { loadRepo } from "@/lib/overview";
 
 // Git state changes every time you merge — never serve this from the cache.
@@ -12,5 +12,6 @@ export default async function RepoPage({ params }: { params: Promise<{ id: strin
   const row = Number.isInteger(id) ? await getRepo(id) : undefined;
   if (!row) notFound();
 
-  return <RepoDetail model={await loadRepo(row)} />;
+  const [model, all] = await Promise.all([loadRepo(row), listRepos(true)]);
+  return <RepoDetail model={model} groups={groupNames(all)} />;
 }

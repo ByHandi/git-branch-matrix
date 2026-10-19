@@ -6,7 +6,18 @@ import { basename, dirname } from "node:path";
 import { revalidatePath } from "next/cache";
 
 import { BROWSE_ROOT, type Listing, findRepos, listDir } from "@/lib/browse";
-import { addRepo, addReposIfNew, deleteNote, listRepos, removeRepo, upsertNote } from "@/lib/db";
+import {
+  type RepoConfig,
+  addRepo,
+  addReposIfNew,
+  deleteNote,
+  listRepos,
+  patchRepo,
+  removeRepo,
+  reorderRepos,
+  updateRepo,
+  upsertNote,
+} from "@/lib/db";
 import { DEFAULTS, GitError, type RepoProbe, probeRepo } from "@/lib/git";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -43,6 +54,55 @@ export async function addRepoAction(input: {
     return { ok: false, error: error instanceof Error ? error.message : "failed to save repo" };
   }
 
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function updateRepoAction(id: number, input: RepoConfig): Promise<ActionResult> {
+  const name = input.name.trim();
+  const path = input.path.trim();
+  if (!name || !path) return { ok: false, error: "name and path are required" };
+  if (!existsSync(path)) return { ok: false, error: `folder not found: ${path}` };
+  if (!input.envs.length) return { ok: false, error: "at least one environment branch is needed" };
+  try {
+    new RegExp(input.ticketPattern);
+  } catch {
+    return { ok: false, error: "ticket pattern is not a valid regex" };
+  }
+
+  try {
+    const row = await updateRepo(id, {
+      ...input,
+      name,
+      path,
+      remote: input.remote.trim() || DEFAULTS.remote,
+      ticketPattern: input.ticketPattern.trim() || DEFAULTS.ticketPattern,
+      group: input.group?.trim() || null,
+    });
+    if (!row) return { ok: false, error: "repo not found" };
+  } catch (error) {
+    // repo.name is unique
+    if ((error as { code?: string }).code === "23505") {
+      return { ok: false, error: `another repo is already called "${name}"` };
+    }
+    return { ok: false, error: error instanceof Error ? error.message : "failed to save repo" };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function patchRepoAction(
+  id: number,
+  patch: { archived?: boolean; pinned?: boolean; group?: string | null },
+): Promise<ActionResult> {
+  await patchRepo(id, "group" in patch ? { ...patch, group: patch.group?.trim() || null } : patch);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function reorderReposAction(ids: number[]): Promise<ActionResult> {
+  await reorderRepos(ids);
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -107,6 +167,8 @@ export type ScanCandidate = {
   /** env branches found in the repo, earliest stage first; empty when none look like one */
   envs: string[];
   branchCount: number;
+  /** parent folder below the scan root, e.g. "telescope" for <root>/telescope/api */
+  group: string | null;
 };
 
 export type ScanResult =
@@ -150,12 +212,14 @@ export async function scanReposAction(path?: string): Promise<ScanResult> {
     for (let n = 2; taken.has(name); n++) name = `${basename(dirname(p))}/${base}-${n}`;
     taken.add(name);
 
+    const parent = dirname(p);
     candidates.push({
       path: probe.toplevel,
       name,
       remote: probe.remote,
       envs: probe.guessedEnvs,
       branchCount: probe.branches.length,
+      group: parent === found.root ? null : basename(parent),
     });
   });
 
@@ -173,7 +237,7 @@ export type AddReposResult =
   | { ok: false; error: string };
 
 export async function addReposAction(
-  items: { name: string; path: string; remote: string; envs: string[] }[],
+  items: { name: string; path: string; remote: string; envs: string[]; group: string | null }[],
 ): Promise<AddReposResult> {
   const valid = items.filter((item) => item.name.trim() && existsSync(item.path));
   if (!valid.length) return { ok: false, error: "nothing to add" };
@@ -186,6 +250,7 @@ export async function addReposAction(
           name: item.name.trim(),
           path: item.path,
           remote: item.remote || DEFAULTS.remote,
+          group: item.group,
           envs,
           // the last stages of the pipeline are the ones that mean "shipped"
           doneEnvs: item.envs.length ? envs.slice(-2) : [...DEFAULTS.doneEnvs],

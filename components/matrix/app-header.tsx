@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { RefreshCwIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useTransition } from "react";
@@ -15,9 +15,17 @@ import { authorOptions } from "./shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+
+const VIEWS = [
+  { href: "/", label: "Repos" },
+  { href: "/tickets", label: "Tickets" },
+];
 
 function AppHeader() {
   const router = useRouter();
+  const pathname = usePathname();
+  const view = pathname.startsWith("/tickets") ? "/tickets" : "/";
   const { query, setQuery, pendingOnly, setPendingOnly, authors, setAuthors, models } = useMatrix();
   const [refreshing, startRefresh] = useTransition();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -57,6 +65,22 @@ function AppHeader() {
           <p className="text-xs text-muted-foreground">git read-only</p>
         </div>
       </Link>
+
+      <nav className="flex gap-1 rounded-lg bg-muted p-1">
+        {VIEWS.map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            aria-current={view === href ? "page" : undefined}
+            className={cn(
+              "rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground",
+              view === href && "bg-background text-foreground shadow-xs",
+            )}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
 
       <div className="ml-auto flex items-center gap-2">
         <Input

@@ -40,6 +40,11 @@ function CandidateRow({
         <div className="flex items-baseline gap-2">
           <span className="truncate text-sm font-medium">{candidate.name}</span>
           <span className="truncate font-mono text-xs text-muted-foreground">{relative}</span>
+          {candidate.group && (
+            <span className="ml-auto shrink-0 rounded border px-1.5 text-xs text-muted-foreground">
+              group: {candidate.group}
+            </span>
+          )}
         </div>
         <p className="text-xs text-muted-foreground">
           {candidate.envs.length ? (
@@ -92,7 +97,7 @@ function ScanRepos({ onDone }: { onDone: () => void }) {
     startSave(async () => {
       const chosen = (found?.candidates ?? []).filter((c) => picked.has(c.path));
       const result = await addReposAction(
-        chosen.map(({ name, path, remote, envs }) => ({ name, path, remote, envs })),
+        chosen.map(({ name, path, remote, envs, group }) => ({ name, path, remote, envs, group })),
       );
       if (!result.ok) {
         toast.error(result.error);

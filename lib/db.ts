@@ -30,8 +30,41 @@ export type RepoRow = {
   done_envs: string[];
   sort_order: number;
   archived: boolean;
+  group_name: string | null;
+  pinned: boolean;
   created_at: Date;
 };
+
+/** What the UI may see and edit of a repo row — plain values, safe to hand to the client. */
+export type RepoSettings = {
+  id: number;
+  name: string;
+  path: string;
+  envs: string[];
+  doneEnvs: string[];
+  remote: string;
+  ticketPattern: string;
+  group: string | null;
+  pinned: boolean;
+  archived: boolean;
+};
+
+export const toSettings = (row: RepoRow): RepoSettings => ({
+  id: row.id,
+  name: row.name,
+  path: row.path,
+  envs: row.envs,
+  doneEnvs: row.done_envs,
+  remote: row.remote,
+  ticketPattern: row.ticket_pattern,
+  group: row.group_name,
+  pinned: row.pinned,
+  archived: row.archived,
+});
+
+/** Distinct group names in use, for suggestions. */
+export const groupNames = (rows: RepoRow[]) =>
+  [...new Set(rows.flatMap((r) => (r.group_name ? [r.group_name] : [])))].sort();
 
 export type BranchNoteRow = {
   id: number;
@@ -65,13 +98,14 @@ export async function addRepo(input: {
   doneEnvs?: string[];
 }): Promise<RepoRow> {
   const { rows } = await pool.query<RepoRow>(
-    `insert into repo (name, path, envs, remote, ticket_pattern, scan_limit, done_envs)
+    `insert into repo (name, path, envs, remote, ticket_pattern, scan_limit, done_envs, sort_order)
      values ($1, $2,
              coalesce($3::text[], '{development,staging,release,main}'::text[]),
              coalesce($4::text, 'origin'),
              coalesce($5::text, '[A-Z][A-Z0-9]{1,9}-\\d+'),
              coalesce($6::integer, 500),
-             coalesce($7::text[], '{release,main}'::text[]))
+             coalesce($7::text[], '{release,main}'::text[]),
+             (select coalesce(max(sort_order), 0) + 1 from repo))
      on conflict (name) do update set
        path = excluded.path, envs = excluded.envs, remote = excluded.remote,
        ticket_pattern = excluded.ticket_pattern, scan_limit = excluded.scan_limit,
@@ -95,7 +129,14 @@ export async function addRepo(input: {
  * a name that is already taken is skipped and reported back.
  */
 export async function addReposIfNew(
-  inputs: { name: string; path: string; envs: string[]; remote: string; doneEnvs: string[] }[],
+  inputs: {
+    name: string;
+    path: string;
+    envs: string[];
+    remote: string;
+    doneEnvs: string[];
+    group: string | null;
+  }[],
 ): Promise<{ added: string[]; skipped: string[] }> {
   const client = await pool.connect();
   const added: string[] = [];
@@ -104,10 +145,11 @@ export async function addReposIfNew(
     await client.query("begin");
     for (const input of inputs) {
       const { rowCount } = await client.query(
-        `insert into repo (name, path, envs, remote, done_envs)
-         values ($1, $2, $3::text[], $4, $5::text[])
+        `insert into repo (name, path, envs, remote, done_envs, group_name, sort_order)
+         values ($1, $2, $3::text[], $4, $5::text[], $6,
+                 (select coalesce(max(sort_order), 0) + 1 from repo))
          on conflict (name) do nothing`,
-        [input.name, input.path, input.envs, input.remote, input.doneEnvs],
+        [input.name, input.path, input.envs, input.remote, input.doneEnvs, input.group],
       );
       (rowCount ? added : skipped).push(input.name);
     }
@@ -119,6 +161,61 @@ export async function addReposIfNew(
     client.release();
   }
   return { added, skipped };
+}
+
+export type RepoConfig = {
+  name: string;
+  path: string;
+  envs: string[];
+  remote: string;
+  ticketPattern: string;
+  doneEnvs: string[];
+  group: string | null;
+};
+
+/** Replace a repo's configuration. Unlike addRepo, the row is matched by id, never by name. */
+export async function updateRepo(id: number, input: RepoConfig): Promise<RepoRow | undefined> {
+  const { rows } = await pool.query<RepoRow>(
+    `update repo set name = $2, path = $3, envs = $4::text[], remote = $5,
+       ticket_pattern = $6, done_envs = $7::text[], group_name = $8
+     where id = $1 returning *`,
+    [
+      id,
+      input.name,
+      input.path,
+      input.envs,
+      input.remote,
+      input.ticketPattern,
+      input.doneEnvs,
+      input.group,
+    ],
+  );
+  return rows[0];
+}
+
+/** Small per-repo toggles that don't warrant reopening the whole config. */
+export async function patchRepo(
+  id: number,
+  patch: { archived?: boolean; pinned?: boolean; group?: string | null },
+): Promise<void> {
+  await pool.query(
+    `update repo set
+       archived   = coalesce($2::boolean, archived),
+       pinned     = coalesce($3::boolean, pinned),
+       group_name = case when $4::boolean then $5::text else group_name end
+     where id = $1`,
+    [id, patch.archived ?? null, patch.pinned ?? null, "group" in patch, patch.group ?? null],
+  );
+}
+
+/** Persist a drag-and-drop order: each id's position becomes its sort_order. */
+export async function reorderRepos(ids: number[]): Promise<void> {
+  await pool.query(
+    `update repo set sort_order = o.pos
+     from unnest($1::int[]) with ordinality as o(id, pos)
+     where repo.id = o.id`,
+    [ids],
+  );
 }
 
 export async function removeRepo(id: number): Promise<boolean> {

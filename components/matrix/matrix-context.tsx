@@ -89,3 +89,14 @@ export function useRegisterRepo(model: RepoView) {
     return () => unregister(model.repoId);
   }, [model, register, unregister]);
 }
+
+/** Same as useRegisterRepo for a page that shows many repos at once. */
+export function useRegisterRepos(models: RepoView[]) {
+  const { register, unregister } = useMatrix();
+  useEffect(() => {
+    for (const model of models) register(model);
+    return () => {
+      for (const model of models) unregister(model.repoId);
+    };
+  }, [models, register, unregister]);
+}

@@ -1,12 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, PencilIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from "lucide-react";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
-
+import EditRepoDialog from "./edit-repo-dialog";
 import FetchedBadge from "./fetched-badge";
+import { ArchiveToggle, PinToggle } from "./repo-toggles";
 import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT,
@@ -20,7 +19,6 @@ import {
   ticketLabel,
 } from "./shared";
 
-import { removeRepoAction } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +47,8 @@ type Props = {
   authors: string[];
   onSelect: (model: RepoView, ticket: Ticket) => void;
   onAuthorClick: (author: string) => void;
+  /** existing group names, suggested in the edit dialog */
+  groups?: string[];
 };
 
 function SortHead({
@@ -84,9 +84,7 @@ function SortHead({
   );
 }
 
-function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick }: Props) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick, groups }: Props) {
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
@@ -111,22 +109,6 @@ function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick 
         : { key, dir: key === "ticket" ? "asc" : "desc" },
     );
 
-  const remove = () => {
-    if (
-      !window.confirm(
-        `Remove "${model.repoName}" from the dashboard?\n\n` +
-          "Its notes in the database go with it. The git repo itself is untouched.",
-      )
-    )
-      return;
-
-    startTransition(async () => {
-      await removeRepoAction(model.repoId);
-      toast.success(`Repo "${model.repoName}" removed`);
-      router.replace("/");
-    });
-  };
-
   const unfinished = model.tickets.filter((t) => !t.done).length;
 
   return (
@@ -147,16 +129,18 @@ function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick 
           </Badge>
         )}
 
-        <Button
-          size="sm"
-          variant="ghost"
-          className="ml-auto"
-          onClick={remove}
-          isLoading={pending}
-          loadingText="Removing..."
-        >
-          Remove
-        </Button>
+        {model.settings.archived && <Badge variant="outline">archived</Badge>}
+
+        <div className="ml-auto flex items-center gap-1">
+          <PinToggle settings={model.settings} />
+          <EditRepoDialog settings={model.settings} groups={groups}>
+            <Button size="sm" variant="ghost">
+              <PencilIcon className="size-4" />
+              Edit
+            </Button>
+          </EditRepoDialog>
+          <ArchiveToggle settings={model.settings} />
+        </div>
       </header>
 
       {model.error ? (
