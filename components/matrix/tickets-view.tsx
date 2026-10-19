@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import type { Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
+import { hasTags } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 
 type Entry = { model: RepoView; ticket: Ticket; stage: string | null };
@@ -87,18 +88,23 @@ function Status({ cross }: { cross: CrossTicket }) {
 function TicketsView({ models }: { models: RepoView[] }) {
   useRegisterRepos(models);
   const router = useRouter();
-  const { query, focusTicket, pendingOnly, authors, filtering, clearFilters } = useMatrix();
+  const { query, focusTicket, pendingOnly, authors, tags, filtering, clearFilters } = useMatrix();
   const [multiOnly, setMultiOnly] = useState(false);
   const [partialOnly, setPartialOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
 
-  const all = useMemo(() => crossTickets(models), [models]);
+  // a tag filter picks which repos take part at all
+  const inScope = useMemo(
+    () => models.filter((m) => hasTags(m.settings.tags, tags)),
+    [models, tags],
+  );
+  const all = useMemo(() => crossTickets(inScope), [inScope]);
 
   const visible = useMemo(() => {
     // Match per repo with the usual filter, then keep the whole ticket if any of
     // its repos matched — an author filter should not hide the other half of it.
     const matched = new Set<string>();
-    for (const model of models) {
+    for (const model of inScope) {
       for (const t of filterTickets(model, query, false, authors))
         matched.add(`${model.repoId}:${t.id}`);
     }
@@ -108,13 +114,13 @@ function TicketsView({ models }: { models: RepoView[] }) {
         !(pendingOnly && cross.doneIn === cross.entries.length) &&
         !(multiOnly && cross.entries.length < 2),
     );
-  }, [all, models, query, authors, pendingOnly, multiOnly]);
+  }, [all, inScope, query, authors, pendingOnly, multiOnly]);
 
   const partial = visible.filter(isPartial).length;
   // the toggle stays usable after the last partial ticket is filtered away
   const listed = partialOnly ? visible.filter(isPartial) : visible;
 
-  useEffect(() => setLimit(PAGE), [query, authors, pendingOnly, multiOnly, partialOnly]);
+  useEffect(() => setLimit(PAGE), [query, authors, tags, pendingOnly, multiOnly, partialOnly]);
 
   const shown = listed.slice(0, limit);
 
@@ -128,8 +134,8 @@ function TicketsView({ models }: { models: RepoView[] }) {
     <div className="flex flex-col gap-3 p-6">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
         <p>
-          {listed.length} ticket{listed.length === 1 ? "" : "s"} across {models.length} repo
-          {models.length === 1 ? "" : "s"}
+          {listed.length} ticket{listed.length === 1 ? "" : "s"} across {inScope.length} repo
+          {inScope.length === 1 ? "" : "s"}
           {(partial > 0 || partialOnly) && (
             <>
               {" · "}

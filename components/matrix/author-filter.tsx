@@ -12,14 +12,24 @@ type Props = {
   options: Option[];
   value: string[];
   onChange: (value: string[]) => void;
+  /** button text while nothing is selected */
+  label?: string;
+  empty?: string;
 };
 
-function AuthorFilter({ options, value, onChange }: Props) {
+/** Multi-select popover used for authors and tags. */
+function AuthorFilter({
+  options,
+  value,
+  onChange,
+  label: name = "Author",
+  empty = "no authors yet",
+}: Props) {
   const toggle = (name: string) =>
     onChange(value.includes(name) ? value.filter((v) => v !== name) : [...value, name]);
 
   const label =
-    value.length === 0 ? "Author" : value.length === 1 ? value[0] : `Author · ${value.length}`;
+    value.length === 0 ? name : value.length === 1 ? value[0] : `${name} · ${value.length}`;
 
   return (
     <Popover>
@@ -33,7 +43,7 @@ function AuthorFilter({ options, value, onChange }: Props) {
       <PopoverContent align="end" className="w-56 p-1">
         <div className="max-h-72 overflow-y-auto">
           {options.length === 0 && (
-            <p className="px-2 py-3 text-center text-xs text-muted-foreground">no authors yet</p>
+            <p className="px-2 py-3 text-center text-xs text-muted-foreground">{empty}</p>
           )}
 
           {options.map((option) => {

@@ -41,6 +41,10 @@ whole table, stacked vertically — fine for 2–3 repos, heavy past 10.
       exist. Archiving hides a repo but keeps its branch notes; Remove deletes them.
 - [x] **Edit repo config.** Only Add and Remove exist today, so changing envs or the ticket pattern
       means remove + re-add, which drops the branch notes.
+- [x] **Tags.** Any number of free-form tags per repo (`frontend`, `client-x`…), next to the
+      single group. Edited as chips in the edit dialog and on Manage repos; a Tag filter in the header
+      (AND: a repo needs every selected tag, `?tag=` in the URL) narrows the overview and the
+      Tickets view; clicking a tag chip toggles it; ⌘K finds repos by tag.
 
 ## Quick wins ✅
 

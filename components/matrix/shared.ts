@@ -1,6 +1,7 @@
 import type { Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
 import { pullRequestUrl } from "@/lib/remote";
+import { hasTags } from "@/lib/tags";
 
 export function ago(iso: string | null): string {
   if (!iso) return "";
@@ -53,6 +54,20 @@ export function filterTickets(
         t.branches.some((b) => b.toLowerCase().includes(q)) ||
         t.authors.some((a) => a.toLowerCase().includes(q)),
     );
+}
+
+export type Filters = { query: string; pendingOnly: boolean; authors: string[]; tags: string[] };
+
+/**
+ * The repo's tickets that pass every filter, or null when the repo itself is
+ * filtered out: it lacks a selected tag, or a ticket filter is on and nothing
+ * matches. A tag filter alone keeps a repo with no tickets at all visible.
+ */
+export function matchRepo(model: RepoView, f: Filters): Ticket[] | null {
+  if (!hasTags(model.settings.tags, f.tags)) return null;
+  const tickets = filterTickets(model, f.query, f.pendingOnly, f.authors);
+  const narrowing = Boolean(f.query.trim()) || f.pendingOnly || f.authors.length > 0;
+  return narrowing && tickets.length === 0 ? null : tickets;
 }
 
 export function sortTickets(tickets: Ticket[], sort: Sort): Ticket[] {

@@ -21,6 +21,9 @@ type MatrixState = {
   setPendingOnly: (update: (prev: boolean) => boolean) => void;
   authors: string[];
   setAuthors: (authors: string[]) => void;
+  /** repo tags; a repo must carry every one of them to be shown */
+  tags: string[];
+  setTags: (tags: string[]) => void;
   /** true when any filter narrows the tickets shown */
   filtering: boolean;
   clearFilters: () => void;
@@ -46,6 +49,7 @@ export function MatrixProvider({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState("");
   const [pendingOnly, setPendingOnly] = useState(false);
   const [authors, setAuthors] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [registry, setRegistry] = useState<Record<number, RepoView>>({});
   const urlRead = useRef(false);
 
@@ -55,14 +59,15 @@ export function MatrixProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!urlRead.current) return;
     const url = new URL(window.location.href);
-    for (const key of ["q", "author", "open"]) url.searchParams.delete(key);
+    for (const key of ["q", "author", "tag", "open"]) url.searchParams.delete(key);
     if (query.trim()) url.searchParams.set("q", query);
     for (const author of authors) url.searchParams.append("author", author);
+    for (const tag of tags) url.searchParams.append("tag", tag);
     if (pendingOnly) url.searchParams.set("open", "1");
     if (url.search !== window.location.search) {
       window.history.replaceState(window.history.state, "", url);
     }
-  }, [query, authors, pendingOnly, pathname]);
+  }, [query, authors, tags, pendingOnly, pathname]);
 
   // Read the filters on load and on back/forward. Declared after the writer on
   // purpose: on the first commit the writer runs first and skips, instead of
@@ -72,6 +77,7 @@ export function MatrixProvider({ children }: { children: React.ReactNode }) {
       const params = new URLSearchParams(window.location.search);
       setQuery(params.get("q") ?? "");
       setAuthors(params.getAll("author"));
+      setTags(params.getAll("tag"));
       setPendingOnly(() => params.get("open") === "1");
       urlRead.current = true;
     };
@@ -98,6 +104,7 @@ export function MatrixProvider({ children }: { children: React.ReactNode }) {
     setQuery("");
     setPendingOnly(() => false);
     setAuthors([]);
+    setTags([]);
   }, []);
   const focusTicket = useCallback((ticket: string) => {
     setQuery(ticket);
@@ -113,14 +120,16 @@ export function MatrixProvider({ children }: { children: React.ReactNode }) {
       setPendingOnly,
       authors,
       setAuthors,
-      filtering: Boolean(query.trim()) || pendingOnly || authors.length > 0,
+      tags,
+      setTags,
+      filtering: Boolean(query.trim()) || pendingOnly || authors.length > 0 || tags.length > 0,
       clearFilters,
       focusTicket,
       models: Object.values(registry),
       register,
       unregister,
     }),
-    [query, pendingOnly, authors, registry, clearFilters, focusTicket, register, unregister],
+    [query, pendingOnly, authors, tags, registry, clearFilters, focusTicket, register, unregister],
   );
 
   return <MatrixContext.Provider value={value}>{children}</MatrixContext.Provider>;

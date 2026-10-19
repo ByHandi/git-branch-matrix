@@ -17,7 +17,8 @@ import {
 import FetchedBadge from "./fetched-badge";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
 import { PinToggle } from "./repo-toggles";
-import { STUCK_DAYS, ago, filterTickets, freshness, openByStage, stuck } from "./shared";
+import { STUCK_DAYS, ago, freshness, matchRepo, openByStage, stuck } from "./shared";
+import { TagChip } from "./tags";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,7 @@ export function RepoOverview({
   archived: number;
   children: React.ReactNode;
 }) {
-  const { models, query, pendingOnly, authors, filtering, clearFilters } = useMatrix();
+  const { models, query, pendingOnly, authors, tags, filtering, clearFilters } = useMatrix();
   const sections = useCollapsedSections();
 
   const { open, hidden, stale } = useMemo(() => {
@@ -89,12 +90,12 @@ export function RepoOverview({
     let stale = 0;
     for (const model of models) {
       if (!model.error && freshness(model.fetchedAt) === "stale") stale++;
-      const tickets = filterTickets(model, query, pendingOnly, authors);
-      open += tickets.filter((t) => !t.done).length;
-      if (filtering && tickets.length === 0) hidden++;
+      const tickets = matchRepo(model, { query, pendingOnly, authors, tags });
+      if (!tickets) hidden++;
+      else open += tickets.filter((t) => !t.done).length;
     }
     return { open, hidden, stale };
-  }, [models, query, pendingOnly, authors, filtering]);
+  }, [models, query, pendingOnly, authors, tags]);
 
   const loading = total - models.length;
 
@@ -156,7 +157,7 @@ export function SectionHeading({
   repoIds: number[];
 }) {
   const { collapsed, toggle } = useContext(CollapseContext);
-  const { models, query, pendingOnly, authors, filtering } = useMatrix();
+  const { models, query, pendingOnly, authors, tags, filtering } = useMatrix();
   const isCollapsed = collapsed.has(section);
 
   const { visible, open } = useMemo(() => {
@@ -165,12 +166,13 @@ export function SectionHeading({
     let open = 0;
     for (const model of models) {
       if (!ids.has(model.repoId)) continue;
-      const tickets = filterTickets(model, query, pendingOnly, authors);
-      if (!filtering || tickets.length) visible++;
+      const tickets = matchRepo(model, { query, pendingOnly, authors, tags });
+      if (!tickets) continue;
+      visible++;
       open += tickets.filter((t) => !t.done).length;
     }
     return { visible, open };
-  }, [models, repoIds, query, pendingOnly, authors, filtering]);
+  }, [models, repoIds, query, pendingOnly, authors, tags]);
 
   // every repo in it is loaded and filtered out: the heading alone is just noise
   const loaded = models.filter((m) => repoIds.includes(m.repoId)).length;
@@ -198,20 +200,39 @@ export function SectionHeading({
   );
 }
 
-function RepoName({ name, path, href }: { name: string; path: string; href?: string }) {
+function RepoName({
+  name,
+  path,
+  href,
+  tags = [],
+  activeTags = [],
+  onTag,
+}: {
+  name: string;
+  path: string;
+  href?: string;
+  tags?: string[];
+  activeTags?: string[];
+  onTag?: (tag: string) => void;
+}) {
   return (
     <TableCell className="py-2.5 pl-4">
-      {href ? (
-        <Link
-          href={href}
-          onClick={(e) => e.stopPropagation()}
-          className="text-sm font-semibold hover:underline"
-        >
-          {name}
-        </Link>
-      ) : (
-        <span className="text-sm font-semibold">{name}</span>
-      )}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {href ? (
+          <Link
+            href={href}
+            onClick={(e) => e.stopPropagation()}
+            className="text-sm font-semibold hover:underline"
+          >
+            {name}
+          </Link>
+        ) : (
+          <span className="text-sm font-semibold">{name}</span>
+        )}
+        {tags.map((tag) => (
+          <TagChip key={tag} tag={tag} active={activeTags.includes(tag)} onClick={onTag} />
+        ))}
+      </div>
       <div title={path} className="max-w-72 truncate font-mono text-xs text-muted-foreground">
         {path}
       </div>
@@ -223,17 +244,18 @@ export function RepoRow({ model, section }: { model: RepoView; section: string }
   useRegisterRepo(model);
   const router = useRouter();
   const { collapsed } = useContext(CollapseContext);
-  const { query, pendingOnly, authors, filtering } = useMatrix();
+  const { query, pendingOnly, authors, tags, setTags } = useMatrix();
 
-  const tickets = useMemo(
-    () => filterTickets(model, query, pendingOnly, authors),
-    [model, query, pendingOnly, authors],
+  const matched = useMemo(
+    () => matchRepo(model, { query, pendingOnly, authors, tags }),
+    [model, query, pendingOnly, authors, tags],
   );
+  const tickets = useMemo(() => matched ?? [], [matched]);
   const stages = useMemo(() => openByStage(model, tickets), [model, tickets]);
   const stuckCount = useMemo(() => tickets.filter((t) => stuck(model, t)).length, [model, tickets]);
 
   if (collapsed.has(section)) return null;
-  if (filtering && tickets.length === 0) return null;
+  if (!matched) return null;
 
   const href = `/repo/${model.repoId}`;
   const open = tickets.filter((t) => !t.done).length;
@@ -244,7 +266,17 @@ export function RepoRow({ model, section }: { model: RepoView; section: string }
 
   return (
     <TableRow className="group cursor-pointer" onClick={() => router.push(href)}>
-      <RepoName name={model.repoName} path={model.repo} href={href} />
+      <RepoName
+        name={model.repoName}
+        path={model.repo}
+        href={href}
+        tags={model.settings.tags}
+        activeTags={tags}
+        // clicking a tag narrows by it; clicking a selected one lets it go
+        onTag={(tag) =>
+          setTags(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag])
+        }
+      />
 
       <TableCell className="text-right whitespace-nowrap tabular-nums">
         {model.error ? (

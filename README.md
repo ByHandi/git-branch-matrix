@@ -75,6 +75,10 @@ reachable on long tables. Press `/` to jump to search, `d` to toggle the theme, 
 to jump to any repo, page or ticket. Filters live in the URL, so a filtered view can be bookmarked
 or shared.
 
+Repos can sit in one **group** (a section on the overview) and carry any number of **tags**. The
+Tag filter shows only repos that have every selected tag; edit both from a repo's Edit dialog or
+from Manage repos.
+
 ## Running it in the background
 
 ```sh

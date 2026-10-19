@@ -49,3 +49,6 @@ alter table repo add column if not exists done_envs text[] not null default '{re
 -- migration: grouping and pinning on the overview
 alter table repo add column if not exists group_name text;
 alter table repo add column if not exists pinned boolean not null default false;
+
+-- migration: free-form tags, for filtering across groups
+alter table repo add column if not exists tags text[] not null default '{}';

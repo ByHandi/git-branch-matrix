@@ -32,6 +32,7 @@ export type RepoRow = {
   archived: boolean;
   group_name: string | null;
   pinned: boolean;
+  tags: string[];
   created_at: Date;
 };
 
@@ -45,6 +46,7 @@ export type RepoSettings = {
   remote: string;
   ticketPattern: string;
   group: string | null;
+  tags: string[];
   pinned: boolean;
   archived: boolean;
 };
@@ -58,6 +60,7 @@ export const toSettings = (row: RepoRow): RepoSettings => ({
   remote: row.remote,
   ticketPattern: row.ticket_pattern,
   group: row.group_name,
+  tags: row.tags,
   pinned: row.pinned,
   archived: row.archived,
 });
@@ -65,6 +68,9 @@ export const toSettings = (row: RepoRow): RepoSettings => ({
 /** Distinct group names in use, for suggestions. */
 export const groupNames = (rows: RepoRow[]) =>
   [...new Set(rows.flatMap((r) => (r.group_name ? [r.group_name] : [])))].sort();
+
+/** Distinct tags in use, for suggestions. */
+export const tagNames = (rows: RepoRow[]) => [...new Set(rows.flatMap((r) => r.tags))].sort();
 
 export type BranchNoteRow = {
   id: number;
@@ -171,13 +177,14 @@ export type RepoConfig = {
   ticketPattern: string;
   doneEnvs: string[];
   group: string | null;
+  tags: string[];
 };
 
 /** Replace a repo's configuration. Unlike addRepo, the row is matched by id, never by name. */
 export async function updateRepo(id: number, input: RepoConfig): Promise<RepoRow | undefined> {
   const { rows } = await pool.query<RepoRow>(
     `update repo set name = $2, path = $3, envs = $4::text[], remote = $5,
-       ticket_pattern = $6, done_envs = $7::text[], group_name = $8
+       ticket_pattern = $6, done_envs = $7::text[], group_name = $8, tags = $9::text[]
      where id = $1 returning *`,
     [
       id,
@@ -188,6 +195,7 @@ export async function updateRepo(id: number, input: RepoConfig): Promise<RepoRow
       input.ticketPattern,
       input.doneEnvs,
       input.group,
+      input.tags,
     ],
   );
   return rows[0];
@@ -196,15 +204,23 @@ export async function updateRepo(id: number, input: RepoConfig): Promise<RepoRow
 /** Small per-repo toggles that don't warrant reopening the whole config. */
 export async function patchRepo(
   id: number,
-  patch: { archived?: boolean; pinned?: boolean; group?: string | null },
+  patch: { archived?: boolean; pinned?: boolean; group?: string | null; tags?: string[] },
 ): Promise<void> {
   await pool.query(
     `update repo set
        archived   = coalesce($2::boolean, archived),
        pinned     = coalesce($3::boolean, pinned),
-       group_name = case when $4::boolean then $5::text else group_name end
+       group_name = case when $4::boolean then $5::text else group_name end,
+       tags       = coalesce($6::text[], tags)
      where id = $1`,
-    [id, patch.archived ?? null, patch.pinned ?? null, "group" in patch, patch.group ?? null],
+    [
+      id,
+      patch.archived ?? null,
+      patch.pinned ?? null,
+      "group" in patch,
+      patch.group ?? null,
+      patch.tags ?? null,
+    ],
   );
 }
 

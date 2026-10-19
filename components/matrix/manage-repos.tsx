@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import EditRepoDialog from "./edit-repo-dialog";
 import { ArchiveToggle, PinToggle } from "./repo-toggles";
+import { TagInput } from "./tags";
 
 import { patchRepoAction, reorderReposAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,14 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
 
   const sections = sectionsOf(items);
   const groups = [...new Set(repos.flatMap((r) => (r.group ? [r.group] : [])))].sort();
+  const allTags = [...new Set(items.flatMap((r) => r.tags))].sort();
+
+  const saveTags = (repo: RepoSettings, tags: string[]) => {
+    setItems((prev) => prev.map((r) => (r.id === repo.id ? { ...r, tags } : r)));
+    startTransition(async () => {
+      await patchRepoAction(repo.id, { tags });
+    });
+  };
 
   const persist = (next: RepoSettings[]) =>
     startTransition(async () => {
@@ -124,7 +133,7 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
         <h2 className="text-sm font-semibold">Manage repos</h2>
         <p className="text-xs text-muted-foreground">
           Drag the handle (or focus it and press ↑ ↓) to reorder within a section. Typing a group
-          name moves the repo into that section.
+          name moves the repo into that section; tags are free-form labels to filter by.
         </p>
       </div>
 
@@ -207,9 +216,18 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
                   }
                 />
 
+                <TagInput
+                  aria-label={`Tags of ${repo.name}`}
+                  value={repo.tags}
+                  onChange={(tags) => saveTags(repo, tags)}
+                  suggestions={allTags}
+                  placeholder="tags"
+                  className="w-56"
+                />
+
                 <div className="flex items-center gap-1">
                   {!repo.archived && <PinToggle settings={repo} />}
-                  <EditRepoDialog settings={repo} groups={groups}>
+                  <EditRepoDialog settings={repo} groups={groups} tags={allTags}>
                     <Button size="sm" variant="ghost">
                       <PencilIcon className="size-4" />
                       Edit

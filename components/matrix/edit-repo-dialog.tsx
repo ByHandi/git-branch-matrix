@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { TagInput } from "./tags";
+
 import { removeRepoAction, updateRepoAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import InputText from "@/components/ui/input-text";
+import { Label } from "@/components/ui/label";
 import type { RepoSettings } from "@/lib/db";
 
 const split = (value: string) =>
@@ -29,16 +32,19 @@ type Props = {
   settings: RepoSettings;
   /** existing group names, offered as suggestions */
   groups?: string[];
+  /** existing tags, offered as suggestions */
+  tags?: string[];
   children: React.ReactNode;
 };
 
-function EditRepoDialog({ settings, groups = [], children }: Props) {
+function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(settings.name);
   const [path, setPath] = useState(settings.path);
   const [group, setGroup] = useState(settings.group ?? "");
+  const [tags, setTags] = useState(settings.tags);
   const [envs, setEnvs] = useState(settings.envs.join(", "));
   const [doneEnvs, setDoneEnvs] = useState(settings.doneEnvs.join(", "));
   const [remote, setRemote] = useState(settings.remote);
@@ -51,6 +57,7 @@ function EditRepoDialog({ settings, groups = [], children }: Props) {
     setName(settings.name);
     setPath(settings.path);
     setGroup(settings.group ?? "");
+    setTags(settings.tags);
     setEnvs(settings.envs.join(", "));
     setDoneEnvs(settings.doneEnvs.join(", "));
     setRemote(settings.remote);
@@ -63,6 +70,7 @@ function EditRepoDialog({ settings, groups = [], children }: Props) {
         name,
         path,
         group,
+        tags,
         envs: split(envs),
         doneEnvs: split(doneEnvs),
         remote,
@@ -135,6 +143,18 @@ function EditRepoDialog({ settings, groups = [], children }: Props) {
               <option key={g} value={g} />
             ))}
           </datalist>
+          <div className="space-y-1">
+            <Label htmlFor={`tags-${settings.id}`}>Tags</Label>
+            <TagInput
+              id={`tags-${settings.id}`}
+              value={tags}
+              onChange={setTags}
+              suggestions={knownTags}
+            />
+            <p className="text-xs text-muted-foreground">
+              Any number, e.g. frontend, client-x. Filter by them from the header.
+            </p>
+          </div>
           <InputText
             label="Environment branches"
             description="Comma separated, earliest stage first."

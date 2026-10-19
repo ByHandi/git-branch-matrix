@@ -21,6 +21,7 @@ import {
   upsertNote,
 } from "@/lib/db";
 import { DEFAULTS, GitError, type RepoProbe, probeRepo } from "@/lib/git";
+import { normalizeTags } from "@/lib/tags";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -80,6 +81,7 @@ export async function updateRepoAction(id: number, input: RepoConfig): Promise<A
       remote: input.remote.trim() || DEFAULTS.remote,
       ticketPattern: input.ticketPattern.trim() || DEFAULTS.ticketPattern,
       group: input.group?.trim() || null,
+      tags: normalizeTags(input.tags),
     });
     if (!row) return { ok: false, error: "repo not found" };
   } catch (error) {
@@ -96,9 +98,13 @@ export async function updateRepoAction(id: number, input: RepoConfig): Promise<A
 
 export async function patchRepoAction(
   id: number,
-  patch: { archived?: boolean; pinned?: boolean; group?: string | null },
+  patch: { archived?: boolean; pinned?: boolean; group?: string | null; tags?: string[] },
 ): Promise<ActionResult> {
-  await patchRepo(id, "group" in patch ? { ...patch, group: patch.group?.trim() || null } : patch);
+  await patchRepo(id, {
+    ...patch,
+    ...("group" in patch && { group: patch.group?.trim() || null }),
+    ...(patch.tags && { tags: normalizeTags(patch.tags) }),
+  });
   revalidatePath("/", "layout");
   return { ok: true };
 }

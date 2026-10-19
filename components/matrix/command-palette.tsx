@@ -8,6 +8,7 @@ import {
   LayoutListIcon,
   SearchIcon,
   SettingsIcon,
+  TagIcon,
   TicketIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 type Item = {
   key: string;
-  section: "Go to" | "Repos" | "Tickets";
+  section: "Go to" | "Repos" | "Tags" | "Tickets";
   label: string;
   hint?: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -35,7 +36,7 @@ const MAX_TICKETS = 8;
 /** ⌘K / Ctrl+K: jump to a page, a repo or a ticket without reaching for the mouse. */
 function CommandPalette() {
   const router = useRouter();
-  const { models, setQuery, focusTicket } = useMatrix();
+  const { models, setQuery, setTags, focusTicket } = useMatrix();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [active, setActive] = useState(0);
@@ -78,7 +79,7 @@ function CommandPalette() {
       .map((p): Item => ({ ...p, section: "Go to" }));
 
     const repoItems: Item[] = repos
-      .filter((r) => hit(r.name, r.group, r.path))
+      .filter((r) => hit(r.name, r.group, r.path, ...r.tags))
       .map((r) => ({
         key: `r:${r.id}`,
         section: "Repos",
@@ -128,8 +129,23 @@ function CommandPalette() {
       });
     }
 
-    return [...pages, ...repoItems, ...ticketItems];
-  }, [text, repos, models, router, setQuery, focusTicket]);
+    const tagItems: Item[] = [...new Set(repos.flatMap((r) => r.tags))]
+      .sort()
+      .filter((tag) => q && hit(tag))
+      .map((tag) => ({
+        key: `g:${tag}`,
+        section: "Tags",
+        label: `Repos tagged “${tag}”`,
+        hint: `${repos.filter((r) => r.tags.includes(tag)).length} repos`,
+        icon: TagIcon,
+        run: () => {
+          setTags([tag]);
+          router.push("/");
+        },
+      }));
+
+    return [...pages, ...repoItems, ...tagItems, ...ticketItems];
+  }, [text, repos, models, router, setQuery, setTags, focusTicket]);
 
   useEffect(() => setActive(0), [text]);
 

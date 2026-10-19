@@ -1,10 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, PencilIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import EditRepoDialog from "./edit-repo-dialog";
 import FetchedBadge from "./fetched-badge";
+import { useMatrix } from "./matrix-context";
 import { ArchiveToggle, PinToggle } from "./repo-toggles";
 import {
   DEFAULT_PAGE_SIZE,
@@ -19,6 +22,7 @@ import {
   stuck,
   ticketLabel,
 } from "./shared";
+import { TagChip } from "./tags";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +54,8 @@ type Props = {
   onAuthorClick: (author: string) => void;
   /** existing group names, suggested in the edit dialog */
   groups?: string[];
+  /** existing tags, suggested in the edit dialog */
+  tagSuggestions?: string[];
 };
 
 function SortHead({
@@ -99,7 +105,18 @@ function StuckBadge({ model, ticket }: { model: RepoView; ticket: Ticket }) {
   );
 }
 
-function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick, groups }: Props) {
+function RepoCard({
+  model,
+  query,
+  pendingOnly,
+  authors,
+  onSelect,
+  onAuthorClick,
+  groups,
+  tagSuggestions,
+}: Props) {
+  const router = useRouter();
+  const { setTags } = useMatrix();
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
@@ -131,6 +148,16 @@ function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick,
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
         <h2 className="text-sm font-semibold">{model.repoName}</h2>
         <span className="font-mono text-xs text-muted-foreground">{model.repo}</span>
+        {model.settings.tags.map((tag) => (
+          <TagChip
+            key={tag}
+            tag={tag}
+            onClick={(t) => {
+              setTags([t]);
+              router.push("/");
+            }}
+          />
+        ))}
         {!model.error && <FetchedBadge fetchedAt={model.fetchedAt} />}
 
         {!model.error && (
@@ -148,7 +175,7 @@ function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick,
 
         <div className="ml-auto flex items-center gap-1">
           <PinToggle settings={model.settings} />
-          <EditRepoDialog settings={model.settings} groups={groups}>
+          <EditRepoDialog settings={model.settings} groups={groups} tags={tagSuggestions}>
             <Button size="sm" variant="ghost">
               <PencilIcon className="size-4" />
               Edit

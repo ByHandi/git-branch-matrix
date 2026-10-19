@@ -27,7 +27,17 @@ function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const view = pathname.startsWith("/tickets") ? "/tickets" : "/";
-  const { query, setQuery, pendingOnly, setPendingOnly, authors, setAuthors, models } = useMatrix();
+  const {
+    query,
+    setQuery,
+    pendingOnly,
+    setPendingOnly,
+    authors,
+    setAuthors,
+    tags,
+    setTags,
+    models,
+  } = useMatrix();
   const [refreshing, startRefresh] = useTransition();
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +66,20 @@ function AppHeader() {
       ...authors.filter((a) => !known.has(a)).map((value) => ({ value, count: 0 })),
     ];
   }, [models, authors]);
+
+  // count = how many repos on screen carry the tag
+  const tagChoices = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const model of models) {
+      for (const tag of model.settings.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    for (const tag of tags) if (!counts.has(tag)) counts.set(tag, 0);
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([value, count]) => ({ value, count }));
+  }, [models, tags]);
+  // a tag picks repos, so it only means something where several repos are listed
+  const showTags = !pathname.startsWith("/repo/") && !pathname.startsWith("/manage");
 
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/75">
@@ -93,6 +117,15 @@ function AppHeader() {
           className="h-8 w-52"
         />
 
+        {showTags && (tagChoices.length > 0 || tags.length > 0) && (
+          <AuthorFilter
+            label="Tag"
+            empty="no tags yet"
+            options={tagChoices}
+            value={tags}
+            onChange={setTags}
+          />
+        )}
         <AuthorFilter options={authorChoices} value={authors} onChange={setAuthors} />
 
         <Button
