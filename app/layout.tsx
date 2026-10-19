@@ -1,10 +1,12 @@
 import { Geist_Mono, Inter } from "next/font/google";
 
+import type { Metadata, Viewport } from "next";
+
 import "./globals.css";
 
-import AppSidebar from "@/components/app-sidebar";
+import AppHeader from "@/components/matrix/app-header";
+import { MatrixProvider } from "@/components/matrix/matrix-context";
 import Providers from "@/components/providers";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +16,15 @@ const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 });
+
+export const metadata: Metadata = {
+  title: "Git Branch Matrix",
+  description: "Track tickets against environments, straight from git",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0EA5E9",
+};
 
 export default function RootLayout({
   children,
@@ -29,17 +40,10 @@ export default function RootLayout({
       <body>
         <Providers>
           <TooltipProvider>
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset>
-                <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                  <SidebarTrigger />
-                  <div className="h-4 w-px bg-border" />
-                  <span className="text-sm font-medium">Components</span>
-                </header>
-                {children}
-              </SidebarInset>
-            </SidebarProvider>
+            <MatrixProvider>
+              <AppHeader />
+              <main>{children}</main>
+            </MatrixProvider>
           </TooltipProvider>
         </Providers>
       </body>

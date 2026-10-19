@@ -1,264 +1,231 @@
-# Next shadcn Boilerplate
+# Git Branch Matrix
 
-A Next.js boilerplate with shadcn/ui, Tailwind CSS, TypeScript, ESLint, and Prettier.
+Track tickets against environments (`development` / `staging` / `release` / `main`) straight from
+your local git clones. Multi-repo.
 
-## Stack
+**Git is read-only.** Every write goes to Postgres.
 
-- Next.js 15
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- shadcn/ui
-- Radix UI
-- React DayPicker
-- date-fns
-- Sonner
-- ESLint 9 flat config
-- Prettier with Tailwind class sorting and import sorting
+## Setup
 
-## Getting Started
-
-Install dependencies:
-
-```bash
+```sh
 npm install
+npm run db:init          # createdb branch_matrix + apply db/schema.sql
+npm run dev              # http://localhost:4321
 ```
 
-Run the development server:
+Override the port with `PORT=5000 npm run dev`.
 
-```bash
-npm run dev
+### Docker / OrbStack
+
+```sh
+cp .env.local .env.docker   # then point the host at host.docker.internal instead of localhost
+docker compose up -d --build   # http://localhost:4321 or http://gbm.orb.local
 ```
 
-Run with Turbopack:
+`~/projects` is mounted read-only at the same path, so repo paths stay valid both natively and in
+the container. Rebuild after code changes with `docker compose up -d --build`; don't run the
+LaunchAgent from `scripts/service.sh` at the same time — both want port 4321.
 
-```bash
-npm run dev:turbo
+### A nicer URL
+
+```sh
+sudo ./scripts/hostname.sh install       # http://gbm.local:4321
+sudo ./scripts/hostname.sh install 80    # http://gbm.local  (pf redirects 80 -> 4321)
+./scripts/hostname.sh status
+sudo ./scripts/hostname.sh uninstall
 ```
 
-## Scripts
+`install` appends one line to `/etc/hosts` (backed up to `/etc/hosts.branch-matrix.bak`) and
+flushes the DNS cache. The record is IPv4-only on purpose: the app binds `127.0.0.1`, so an `::1`
+record for the same name only sends every lookup to a dead address first. `install` also strips any
+IPv6 record that crept in — dropping just the hostname, so a shared line like `::1 localhost` keeps
+working.
 
-```bash
-npm run dev
-npm run dev:turbo
+Passing `80` additionally loads a pf anchor that redirects port 80 to the app, so the app itself
+never needs to run as root — but **pf rules do not survive a reboot**, so re-run it after
+restarting, or stick with the port suffix. `status` tells the two apart: an anchor that is
+installed but no longer loaded is reported as `redirect MATI`, which is the usual reason
+`http://gbm.local` stops answering while `http://gbm.local:4321` still works.
+
+Note that `.local` is reserved for mDNS/Bonjour (RFC 6762). An `/etc/hosts` entry does win on
+macOS, but it can slow name lookups and will clash if a Bonjour device ever claims the same name.
+`gbm.test` is the conflict-free choice — set `BRANCH_MATRIX_HOST=gbm.test` before running the
+script if you would rather avoid it.
+
+Default connection string: `postgres://$USER@localhost:5432/branch_matrix`.
+Override with `BRANCH_MATRIX_DB` or `DATABASE_URL`.
+
+## Adding a repo
+
+**+ Repo** → **Browse…**. Folders containing a git repo get a 🌿 icon and a **Select** button.
+Once picked, the name, remote, environment branches, and done-environments are filled in from the
+repo itself — correct them if a guess is off.
+
+Browsing is confined to a single root, `$HOME` by default. Change it with `BRANCH_MATRIX_ROOT`:
+
+```sh
+BRANCH_MATRIX_ROOT=/Users/handiani/projects npm run dev
+```
+
+Every control (search, author filter, refresh, add repo) lives in the sticky header, so it stays
+reachable on long tables. Press `/` to jump to search, `d` to toggle the theme.
+
+## Running it in the background
+
+```sh
 npm run build
-npm run start
-npm run lint
-npm run format
-npm run typecheck
+./scripts/service.sh install      # starts at login, restarts if it dies
+./scripts/service.sh status
+./scripts/service.sh logs
+./scripts/service.sh restart      # rebuild + restart, after changing code
+./scripts/service.sh uninstall
 ```
 
-## UI Components
+This installs a LaunchAgent (`~/Library/LaunchAgents/com.gitbranchmatrix.app.plist`) that runs
+`next start` bound to `127.0.0.1` — loopback only, since the dashboard has no authentication and
+the machine may sit on a shared network. Logs go to `~/Library/Logs/git-branch-matrix.log`.
 
-Base shadcn-style components live in `components/ui`.
+`KeepAlive` is on, so if Postgres is not up yet at login the service simply retries until it is.
 
-Custom form components:
+**After changing code, run `./scripts/service.sh restart`.** Running `npm run dev` in the same
+checkout overwrites `.next`, which leaves the production build broken — the symptom is a 500 with
+`Cannot find module './vendor-chunks/…'` in the log.
 
-- `InputText`
-- `InputTextarea`
-- `InputNumber`
-- `InputFormattedNumber`
-- `InputSlider`
-- `InputSelect`
-- `InputCombobox`
-- `InputComboboxMultiple`
-- `InputCheckbox`
-- `InputSwitch`
-- `InputCheckboxGroup`
-- `InputRadioGroup`
-- `DatePicker`
-- `DateRangePicker`
+The pf redirect from step "A nicer URL" does **not** survive a reboot on its own:
 
-Supporting primitives:
-
-- `Button`
-- `Icon`
-- `Input`
-- `InputGroup`
-- `Select`
-- `Combobox`
-- `Checkbox`
-- `Switch`
-- `Slider`
-- `RadioGroup`
-- `Textarea`
-- `Spinner`
-- `Field`
-- `Label`
-- `Calendar`
-- `Popover`
-- `Separator`
-
-## Component Usage
-
-```tsx
-import { Button } from "@/components/ui/button";
-import DatePicker from "@/components/ui/date-picker";
-import DateRangePicker from "@/components/ui/date-range-picker";
-import Icon from "@/components/ui/icon";
-import InputCheckbox from "@/components/ui/input-checkbox";
-import InputCheckboxGroup from "@/components/ui/input-checkbox-group";
-import InputCombobox from "@/components/ui/input-combobox";
-import InputComboboxMultiple from "@/components/ui/input-combobox-multiple";
-import InputFormattedNumber from "@/components/ui/input-formatted-number";
-import InputNumber from "@/components/ui/input-number";
-import InputRadioGroup from "@/components/ui/input-radio-group";
-import InputSelect from "@/components/ui/input-select";
-import InputSlider from "@/components/ui/input-slider";
-import InputSwitch from "@/components/ui/input-switch";
-import InputText from "@/components/ui/input-text";
-import InputTextarea from "@/components/ui/input-textarea";
-import { Spinner } from "@/components/ui/spinner";
+```sh
+sudo ./scripts/service.sh pf      # LaunchDaemon that reloads pf at boot
 ```
 
-Example:
+### Known tradeoff with the port-80 redirect
 
-```tsx
-<Button startContent={<Icon name="plus" />}>Create</Button>
+While the pf redirect is loaded, `http://127.0.0.1:4321` stops answering directly — on loopback
+the reply packets traverse `lo0` again and hit the redirect's state. `http://gbm.local` keeps
+working, which is what you actually use. If you would rather keep direct port access, drop the
+redirect and live with the port suffix:
 
-<Button endContent={<Icon name="arrow-right" />} variant="outline">
-  Continue
-</Button>
-
-<Button isLoading loadingText="Saving...">
-  Save
-</Button>
-
-<Spinner />
-
-<InputText required label="Username" placeholder="Username" />
-
-<InputTextarea label="Description" placeholder="Write a description..." />
-
-<InputNumber required hideStepper label="Amount" min={0} step={1} startContent="Rp" />
-
-<InputFormattedNumber
-  label="Formatted amount"
-  startContent="Rp"
-  defaultValue={1250000.5}
-/>
-
-<InputSlider label="Progress" defaultValue={[45]} min={0} max={100} step={5} showValue />
-
-<InputSlider label="Budget range" defaultValue={[20, 80]} min={0} max={100} step={5} showValue />
-
-<InputSelect
-  label="Status"
-  placeholder="Select status"
-  options={[
-    { label: "Active", value: "active" },
-    { label: "Inactive", value: "inactive" },
-  ]}
-/>
-
-<InputCombobox
-  label="Assignee"
-  placeholder="Select assignee"
-  defaultValue="jane"
-  options={[
-    { label: "Jane Doe", value: "jane" },
-    { label: "John Smith", value: "john" },
-  ]}
-/>
-
-<InputComboboxMultiple
-  label="Reviewers"
-  placeholder="Select reviewers"
-  defaultValue={["jane", "john"]}
-  options={[
-    { label: "Jane Doe", value: "jane" },
-    { label: "John Smith", value: "john" },
-  ]}
-/>
-
-<InputCheckbox
-  label="Accept terms"
-  description="You agree to the terms and privacy policy."
-/>
-
-<InputSwitch
-  label="Email notifications"
-  description="Receive email updates for important activity."
-  defaultChecked
-/>
-
-<InputCheckboxGroup
-  label="Permissions"
-  defaultValue={["read"]}
-  options={[
-    { label: "Create", value: "create" },
-    { label: "Read", value: "read" },
-  ]}
-/>
-
-<InputRadioGroup
-  label="Visibility"
-  defaultValue="public"
-  options={[
-    { label: "Public", value: "public" },
-    { label: "Private", value: "private" },
-  ]}
-/>
-
-<DatePicker label="Date" />
-
-<DateRangePicker label="Period" />
+```sh
+sudo ./scripts/hostname.sh uninstall
+sudo ./scripts/hostname.sh install     # http://gbm.local:4321
 ```
 
-## Formatting
+## When is a ticket "done"?
 
-Prettier is configured in `.prettierrc` with:
+Per repo, via `done_envs` (default `release, main`). A ticket is done once it has landed in **all**
+of those — not in every environment. That way a hotfix merged straight to `release` and `main`,
+skipping `development` and `staging`, still counts as shipped.
 
-- `prettier-plugin-tailwindcss`
-- `@trivago/prettier-plugin-sort-imports`
+`done_envs` is intersected with the environments the repo actually has, so a repo without
+`release` still behaves sensibly. If none of them exist, it falls back to requiring every
+environment. Columns that decide done are shown at full contrast in the table header; the rest are
+dimmed — they still show progress, they just do not gate completion.
 
-Tailwind class sorting includes `cn` and `cva` via `tailwindFunctions`.
+## Architecture
 
-Run formatting:
-
-```bash
-npm run format
+```
+  local clone ──► lib/git.ts ──┐
+  (rev-parse, for-each-ref,    ├──► lib/overview.ts ──► app/page.tsx ──► components/matrix/*
+   log — READS only)           │         ▲
+                               │         │
+  Postgres  ──► lib/db.ts ─────┘         └── app/actions.ts (the only WRITES)
+  (manual notes)
 ```
 
-## Linting
+| File              | What it holds                                               |
+| ----------------- | ----------------------------------------------------------- |
+| `lib/git.ts`      | read-only git layer + `buildModel()`                        |
+| `lib/db.ts`       | Postgres queries, pool singleton on `globalThis`            |
+| `lib/browse.ts`   | directory listing for the folder picker, confined to a root |
+| `lib/overview.ts` | merges git + notes, reads every repo in parallel            |
+| `app/actions.ts`  | server actions: add/remove repo, save note                  |
+| `db/schema.sql`   | `repo` + `branch_note` tables                               |
 
-ESLint uses the Next.js 15 config through `FlatCompat`, with TypeScript support and `eslint-config-prettier` to avoid conflicts with Prettier.
+### Why it is built this way
 
-Run linting:
+- **`READ_ONLY_COMMANDS` in `lib/git.ts`** — an allowlist. Anything outside `rev-parse`,
+  `for-each-ref`, `log`, `remote` throws. If someone later adds `git fetch` or `git checkout`,
+  it fails loudly instead of quietly touching the repo.
+- **`export const dynamic = "force-dynamic"` in `app/page.tsx`** — git state changes on every
+  merge. Without it Next caches and you read a stale matrix.
+- **Pool stored on `globalThis`** — `next dev` re-evaluates modules on every edit; without this,
+  Postgres connections pile up until they are refused.
+- **`import "server-only"`** in `lib/git.ts` and `lib/db.ts` — `child_process` and `pg` must never
+  reach the client bundle.
 
-```bash
-npm run lint
+## How the data is derived
+
+1. **Containment** — `for-each-ref --merged origin/<env>` tells you which branches already sit
+   inside each environment.
+2. **Merge commits** — `Merge pull request #N from owner/branch` is parsed for the PR number,
+   the merge date, and branches that were **deleted** afterwards. Squash merges (`subject (#N)`)
+   are picked up too.
+3. **Ticket regex** — over branch names and commit messages. A branch carrying more than one
+   ticket is flagged ⧉ combined.
+4. **Author** — from the branch tip while the branch exists. Once deleted, it is recovered from
+   the merge commit's second parent (the merged branch tip), so you still see **who wrote it**,
+   not who clicked merge. Squash merges have no second parent, so those fall back to the merge
+   commit author and are labelled "(from merge commit)" in the detail panel.
+5. **Postgres** — notes, status, and tickets that appear in no branch name at all.
+
+## Opening a pull request
+
+An environment a ticket has not reached yet shows `·`; hovering turns it into **+ PR**, which
+opens the host's compare page in a new tab with the form already expanded:
+
+```
+https://github.com/owner/repo/compare/{env}...{branch}?expand=1
 ```
 
-Run type checking:
+GitHub, GitLab and Bitbucket URL shapes are all handled; the host is detected from
+`git remote get-url`. The detail panel carries the same link per branch per environment, which is
+where you go when a ticket spans more than one branch.
 
-```bash
-npm run typecheck
-```
+No link is shown when there is nothing sensible to point at: the branch is already merged there,
+the branch has been deleted, the remote host is not one we know, or the ticket has several live
+branches so the head would be ambiguous.
 
-Run a production build:
+Note `lib/remote.ts` exists purely so this works. Client components need `pullRequestUrl`, and
+importing it from `lib/git.ts` would drag `child_process` into the browser bundle — the
+`server-only` guard rejects the build if you try.
 
-```bash
-npm run build
-```
+## Icon
 
-## Theme
+The mark is the app's own matrix: filled cells for environments a ticket has reached, dark cells
+for the ones it has not. Sources live in `assets/`; the files Next actually serves are
+`app/icon.svg`, `app/apple-icon.png` (180px) and `app/favicon.ico`.
 
-Theme tokens are defined in `app/globals.css` using OKLCH colors.
+`favicon.ico` carries size-specific art — a simplified 2×2 grid at 16px, the full 3×3 at 32 and
+48 — because nine cells turn to mush at 16 physical pixels. Modern browsers prefer `icon.svg`
+over the `.ico`, which on a HiDPI screen renders at 32 device pixels and stays crisp. On a
+non-HiDPI monitor they will render the 3×3 at 16px and it does get muddy; if that bothers you,
+copy `assets/icon-16.svg` over `app/icon.svg`.
 
-The current palette uses a blue/cyan direction with:
+To regenerate everything after editing the sources, see the snippet in `assets/README.md`.
 
-- cyan primary color
-- blue-tinted light surfaces
-- navy blue dark background
-- blue-tinted dark cards, borders, inputs, and accents
+## Names that stay as they are
 
-## Adding shadcn Components
+The app is **Git Branch Matrix**, but a few identifiers still read `branch-matrix`, deliberately:
 
-Use the shadcn CLI:
+| Identifier                                       | Why                                                   |
+| ------------------------------------------------ | ----------------------------------------------------- |
+| `branch_matrix` database                         | renaming means dumping and restoring live notes       |
+| `branch-matrix` pf anchor + `/etc/pf.conf` entry | root-owned; the uninstall path matches on this name   |
+| `# branch-matrix` marker in `/etc/hosts`         | same — `hostname.sh uninstall` finds its line by this |
+| the `branch-matrix-next` directory               | the installed LaunchAgent points at this path         |
 
-```bash
-npx shadcn@latest add button
-```
+The LaunchAgent label _was_ migrated (`com.branchmatrix.app` → `com.gitbranchmatrix.app`);
+`service.sh install` boots out the old one first, so you never end up with two.
 
-Generated UI components are placed under `components/ui`.
+## Limits
+
+- **Not deployable to Vercel or any serverless host.** This reads git clones from disk. Run it on
+  your machine, or on a server that holds the clones.
+- **Only as fresh as your last `git fetch`.** This app never calls `git fetch` itself.
+- A squash merge with no ticket ID in the commit message is invisible — it shows up as `#<PR>`.
+- Merge commit scanning is capped by `scan_limit` per repo (default 500).
+- Environment guessing only matches common names (`development`, `staging`, `release`, `main`, …).
+  A stale branch like `master` can be picked up — check before saving.
+- Tables paginate client-side (25 per page by default), sorted by **Updated desc**. Click a column
+  header to change it.
+- The folder picker is server-side, not an OS dialog. Browsers never hand a web page an absolute
+  path, so there is no other way.

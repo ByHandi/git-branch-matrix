@@ -1,0 +1,21 @@
+name: git-branch-matrix
+
+services:
+  app:
+    build: .
+    image: git-branch-matrix
+    restart: unless-stopped
+    # BRANCH_MATRIX_DB lives here (gitignored). Inside the container `localhost`
+    # is the container itself — reach the host's Postgres via host.docker.internal.
+    env_file: .env.docker
+    environment:
+      BRANCH_MATRIX_ROOT: ${HOME}/projects
+    volumes:
+      # Same path as on the host, so repo paths stored in Postgres stay valid
+      # for both a native `npm run dev` and the container. Git is read-only anyway.
+      - ${HOME}/projects:${HOME}/projects:ro
+    ports:
+      # loopback only: this dashboard has no auth, keep it off the LAN
+      - "127.0.0.1:4321:4321"
+    labels:
+      dev.orbstack.domains: gbm.orb.local

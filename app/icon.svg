@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Git Branch Matrix">
+  <rect width="32" height="32" rx="7" fill="#0EA5E9"/>
+  <!-- filled cells: how far a ticket has travelled across environments -->
+  <g fill="#FFFFFF">
+    <rect x="6"    y="6"    width="5" height="5" rx="1.5"/>
+    <rect x="13.5" y="6"    width="5" height="5" rx="1.5"/>
+    <rect x="21"   y="6"    width="5" height="5" rx="1.5"/>
+    <rect x="6"    y="13.5" width="5" height="5" rx="1.5"/>
+    <rect x="13.5" y="13.5" width="5" height="5" rx="1.5"/>
+    <rect x="6"    y="21"   width="5" height="5" rx="1.5"/>
+  </g>
+  <!-- not-yet-merged cells, dark rather than translucent so they hold at small sizes -->
+  <g fill="#0B5F87">
+    <rect x="21"   y="13.5" width="5" height="5" rx="1.5"/>
+    <rect x="13.5" y="21"   width="5" height="5" rx="1.5"/>
+    <rect x="21"   y="21"   width="5" height="5" rx="1.5"/>
+  </g>
+</svg>

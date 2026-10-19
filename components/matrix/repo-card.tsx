@@ -1,0 +1,376 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
+import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import {
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_SORT,
+  PAGE_SIZES,
+  type Sort,
+  type SortKey,
+  ago,
+  filterTickets,
+  prTarget,
+  sortTickets,
+  ticketLabel,
+} from "./shared";
+
+import { removeRepoAction } from "@/app/actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { Ticket } from "@/lib/git";
+import type { RepoView } from "@/lib/overview";
+import { cn } from "@/lib/utils";
+
+type Props = {
+  model: RepoView;
+  query: string;
+  pendingOnly: boolean;
+  authors: string[];
+  onSelect: (model: RepoView, ticket: Ticket) => void;
+  onAuthorClick: (author: string) => void;
+};
+
+function SortHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: Sort;
+  onSort: (key: SortKey) => void;
+  className?: string;
+}) {
+  const active = sort.key === sortKey;
+  const Icon = !active ? ChevronsUpDownIcon : sort.dir === "asc" ? ArrowUpIcon : ArrowDownIcon;
+
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-foreground",
+          active && "text-foreground",
+        )}
+      >
+        {label}
+        <Icon className={cn("size-3", !active && "opacity-40")} />
+      </button>
+    </TableHead>
+  );
+}
+
+function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick }: Props) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(1);
+
+  const filtered = useMemo(
+    () => filterTickets(model, query, pendingOnly, authors),
+    [model, query, pendingOnly, authors],
+  );
+  const sorted = useMemo(() => sortTickets(filtered, sort), [filtered, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+  // a narrowed filter can leave you on a page that no longer exists
+  useEffect(() => setPage(1), [query, pendingOnly, authors, sort, pageSize]);
+  const current = Math.min(page, pageCount);
+  const start = (current - 1) * pageSize;
+  const visible = sorted.slice(start, start + pageSize);
+
+  const toggleSort = (key: SortKey) =>
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: key === "ticket" ? "asc" : "desc" },
+    );
+
+  const remove = () => {
+    if (
+      !window.confirm(
+        `Remove "${model.repoName}" from the dashboard?\n\n` +
+          "Its notes in the database go with it. The git repo itself is untouched.",
+      )
+    )
+      return;
+
+    startTransition(async () => {
+      await removeRepoAction(model.repoId);
+      toast.success(`Repo "${model.repoName}" removed`);
+      router.replace("/");
+    });
+  };
+
+  const unfinished = model.tickets.filter((t) => !t.done).length;
+
+  return (
+    <section className="rounded-xl border bg-card">
+      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+        <h2 className="text-sm font-semibold">{model.repoName}</h2>
+        <span className="font-mono text-xs text-muted-foreground">{model.repo}</span>
+
+        {!model.error && (
+          <Badge variant="secondary">
+            {unfinished} open / {model.tickets.length} tickets
+          </Badge>
+        )}
+        {model.missingEnvs.length > 0 && (
+          <Badge variant="outline" title="these environment branches do not exist in this repo">
+            missing: {model.missingEnvs.join(", ")}
+          </Badge>
+        )}
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="ml-auto"
+          onClick={remove}
+          isLoading={pending}
+          loadingText="Removing..."
+        >
+          Remove
+        </Button>
+      </header>
+
+      {model.error ? (
+        <p className="px-4 py-8 text-center text-sm text-destructive">{model.error}</p>
+      ) : sorted.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">nothing matches</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortHead label="Ticket" sortKey="ticket" sort={sort} onSort={toggleSort} />
+                  <TableHead>Branch</TableHead>
+                  <SortHead label="Author" sortKey="author" sort={sort} onSort={toggleSort} />
+                  {model.envs.map((env, i) => {
+                    const counts = model.doneEnvs.includes(env);
+                    return (
+                      <TableHead
+                        key={env}
+                        className={cn("text-center", !counts && "font-normal opacity-70")}
+                        title={
+                          counts
+                            ? "counts toward done"
+                            : "shown for progress, but does not decide done"
+                        }
+                      >
+                        {i === 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleSort("reach")}
+                            className={cn(
+                              "hover:text-foreground",
+                              sort.key === "reach" && "text-foreground",
+                            )}
+                            title="Sort by how far the ticket has travelled"
+                          >
+                            {env}
+                          </button>
+                        ) : (
+                          env
+                        )}
+                      </TableHead>
+                    );
+                  })}
+                  <SortHead label="Updated" sortKey="date" sort={sort} onSort={toggleSort} />
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {visible.map((ticket) => (
+                  <TableRow
+                    key={ticket.id}
+                    className="cursor-pointer"
+                    onClick={() => onSelect(model, ticket)}
+                  >
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "font-mono text-xs",
+                          ticket.done || ticket.untracked
+                            ? "text-muted-foreground"
+                            : "font-semibold",
+                        )}
+                      >
+                        {ticketLabel(ticket.id)}
+                      </span>
+                      {ticket.untracked && (
+                        <Badge variant="outline" className="ml-2">
+                          no ticket
+                        </Badge>
+                      )}
+                      {ticket.combined && (
+                        <Badge variant="secondary" className="ml-2" title="combined branch">
+                          ⧉ combined
+                        </Badge>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="space-y-0.5">
+                      {ticket.branches.map((name) => {
+                        const branch = model.branches.find((b) => b.name === name);
+                        return (
+                          <div
+                            key={name}
+                            title={branch?.live ? undefined : "branch has been deleted"}
+                            className={cn(
+                              "font-mono text-xs text-muted-foreground",
+                              !branch?.live && "line-through opacity-70",
+                            )}
+                          >
+                            {name}
+                          </div>
+                        );
+                      })}
+                    </TableCell>
+
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {ticket.authors.length ? (
+                        ticket.authors.map((author, i) => (
+                          <span key={author}>
+                            {i > 0 && ", "}
+                            <button
+                              type="button"
+                              title={`Filter to ${author} only`}
+                              className="hover:text-foreground hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAuthorClick(author);
+                              }}
+                            >
+                              {author}
+                            </button>
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </TableCell>
+
+                    {model.envs.map((env) => {
+                      const cell = ticket.envs[env];
+                      const pr = cell ? null : prTarget(model, ticket, env);
+                      return (
+                        <TableCell key={env} className="text-center">
+                          {cell ? (
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                              ✓
+                              {cell.pr ? (
+                                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                  #{cell.pr}
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : pr ? (
+                            <a
+                              href={pr.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              title={`Open a pull request: ${pr.head} → ${env}`}
+                              className="group/pr inline-flex w-12 justify-center"
+                            >
+                              <span className="text-muted-foreground/40 group-hover/pr:hidden">
+                                ·
+                              </span>
+                              <span className="hidden text-xs font-medium text-sky-600 group-hover/pr:inline dark:text-sky-400">
+                                + PR
+                              </span>
+                            </a>
+                          ) : (
+                            <span className="inline-flex w-12 justify-center text-muted-foreground/40">
+                              ·
+                            </span>
+                          )}
+                        </TableCell>
+                      );
+                    })}
+
+                    <TableCell className="text-xs text-muted-foreground">
+                      {ago(ticket.date)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <footer className="flex flex-wrap items-center gap-3 border-t px-4 py-2 text-xs text-muted-foreground">
+            <span>
+              {start + 1}–{Math.min(start + pageSize, sorted.length)} of {sorted.length}
+              {sorted.length !== model.tickets.length && ` (filtered from ${model.tickets.length})`}
+            </span>
+
+            <div className="flex items-center gap-1">
+              <span>per page</span>
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                <SelectTrigger size="sm" className="h-7 w-18">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZES.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={current <= 1}
+                onClick={() => setPage(current - 1)}
+              >
+                ‹ Prev
+              </Button>
+              <span className="px-1">
+                {current} / {pageCount}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={current >= pageCount}
+                onClick={() => setPage(current + 1)}
+              >
+                Next ›
+              </Button>
+            </div>
+          </footer>
+        </>
+      )}
+    </section>
+  );
+}
+
+export default RepoCard;
