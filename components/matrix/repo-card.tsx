@@ -6,6 +6,7 @@ import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import FetchedBadge from "./fetched-badge";
 import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT,
@@ -133,6 +134,7 @@ function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick 
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
         <h2 className="text-sm font-semibold">{model.repoName}</h2>
         <span className="font-mono text-xs text-muted-foreground">{model.repo}</span>
+        {!model.error && <FetchedBadge fetchedAt={model.fetchedAt} />}
 
         {!model.error && (
           <Badge variant="secondary">

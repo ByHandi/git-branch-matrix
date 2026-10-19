@@ -11,6 +11,15 @@ export function ago(iso: string | null): string {
   return `${Math.round(days / 365)}y ago`;
 }
 
+export type Freshness = "fresh" | "aging" | "stale";
+
+/** How far a repo's remote branches may lag, judged by its last `git fetch`. */
+export function freshness(fetchedAt: string | null): Freshness {
+  if (!fetchedAt) return "stale";
+  const days = (Date.now() - new Date(fetchedAt).getTime()) / 86_400_000;
+  return days > 7 ? "stale" : days > 1 ? "aging" : "fresh";
+}
+
 export const ticketLabel = (id: string) => id.replace("(no-ticket) ", "");
 
 export type SortKey = "date" | "ticket" | "reach" | "author";

@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { ChevronRightIcon } from "lucide-react";
 import { Fragment, useMemo } from "react";
 
+import FetchedBadge from "./fetched-badge";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
-import { ago, filterTickets, openByStage } from "./shared";
+import { ago, filterTickets, freshness, openByStage } from "./shared";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,15 +31,17 @@ import { cn } from "@/lib/utils";
 export function RepoOverview({ total, children }: { total: number; children: React.ReactNode }) {
   const { models, query, pendingOnly, authors, filtering, clearFilters } = useMatrix();
 
-  const { open, hidden } = useMemo(() => {
+  const { open, hidden, stale } = useMemo(() => {
     let open = 0;
     let hidden = 0;
+    let stale = 0;
     for (const model of models) {
+      if (!model.error && freshness(model.fetchedAt) === "stale") stale++;
       const tickets = filterTickets(model, query, pendingOnly, authors);
       open += tickets.filter((t) => !t.done).length;
       if (filtering && tickets.length === 0) hidden++;
     }
-    return { open, hidden };
+    return { open, hidden, stale };
   }, [models, query, pendingOnly, authors, filtering]);
 
   const loading = total - models.length;
@@ -48,6 +51,9 @@ export function RepoOverview({ total, children }: { total: number; children: Rea
       <p className="text-xs text-muted-foreground">
         {total} repo{total === 1 ? "" : "s"} · {open} open{filtering && " matching the filter"}
         {loading > 0 && ` · reading ${loading} from git…`}
+        {stale > 0 && (
+          <span className="text-destructive"> · {stale} not fetched in over a week</span>
+        )}
       </p>
 
       <section className="rounded-xl border bg-card">
@@ -58,6 +64,7 @@ export function RepoOverview({ total, children }: { total: number; children: Rea
               <TableHead className="text-right">Open</TableHead>
               <TableHead>Where open tickets are</TableHead>
               <TableHead>Updated</TableHead>
+              <TableHead>Fetched</TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
@@ -174,6 +181,8 @@ export function RepoRow({ model }: { model: RepoView }) {
         {ago(latest)}
       </TableCell>
 
+      <TableCell>{!model.error && <FetchedBadge fetchedAt={model.fetchedAt} />}</TableCell>
+
       <TableCell className="pr-4">
         <ChevronRightIcon className="size-4 text-muted-foreground" />
       </TableCell>
@@ -194,6 +203,9 @@ export function RepoRowSkeleton({ name, path }: { name: string; path: string }) 
       </TableCell>
       <TableCell>
         <Skeleton className="h-4 w-14" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-4 w-20" />
       </TableCell>
       <TableCell />
     </TableRow>

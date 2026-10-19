@@ -17,13 +17,16 @@ whole table, stacked vertically — fine for 2–3 repos, heavy past 10.
 - [x] **Search matches repo names.** Typing a repo's name shows that repo with all its tickets,
       instead of hunting for tickets whose id or branch happens to contain the text.
 
-## Phase 2 — Onboarding and freshness
+## Phase 2 — Onboarding and freshness ✅
 
-- [ ] **Bulk add.** A "Scan `~/projects`" action lists every git repo not yet tracked, with
+- [x] **Bulk add.** A "Scan `~/projects`" action lists every git repo not yet tracked, with
       checkboxes. Envs are guessed per repo the way `probeRepoAction` already does, saved in one go.
-- [ ] **Stale-data indicator.** The app never runs `git fetch` (by design), and in Docker the repos
+- [x] **Stale-data indicator.** The app never runs `git fetch` (by design), and in Docker the repos
       are mounted read-only, so a repo you forgot to fetch silently goes stale. Read the mtime of
       `.git/FETCH_HEAD` (no write needed) and show a badge: yellow > 1 day, red > 1 week.
+- [ ] **Follow-up: smarter env guessing.** Scanning `~/projects` showed repos guessed as
+      `development › dev › main` — both `dev` and `development` exist and both are taken as envs.
+      Prefer one name per stage when several aliases are present.
 
 ## Phase 3 — Organising repos
 

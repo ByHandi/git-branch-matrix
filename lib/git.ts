@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
 
 import "server-only";
@@ -462,4 +464,19 @@ export async function probeRepo(repoPath: string): Promise<RepoProbe> {
   const guessedEnvs = ENV_CANDIDATES.filter((e) => present.has(e));
 
   return { toplevel: top, remote, remotes, branches, guessedEnvs };
+}
+
+/**
+ * When `git fetch` last ran here, from FETCH_HEAD's mtime — null if never.
+ * This app never fetches, so this is how stale the remote branches it reads are.
+ * `--git-path` resolves FETCH_HEAD for worktrees too, without writing anything.
+ */
+export async function lastFetchedAt(repoPath: string): Promise<string | null> {
+  const fetchHead = (await git(repoPath, ["rev-parse", "--git-path", "FETCH_HEAD"], true)).trim();
+  if (!fetchHead) return null;
+  try {
+    return (await stat(resolve(repoPath, fetchHead))).mtime.toISOString();
+  } catch {
+    return null;
+  }
 }

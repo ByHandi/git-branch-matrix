@@ -90,6 +90,37 @@ export async function addRepo(input: {
   return rows[0];
 }
 
+/**
+ * Insert several repos in one transaction. Unlike addRepo this never overwrites:
+ * a name that is already taken is skipped and reported back.
+ */
+export async function addReposIfNew(
+  inputs: { name: string; path: string; envs: string[]; remote: string; doneEnvs: string[] }[],
+): Promise<{ added: string[]; skipped: string[] }> {
+  const client = await pool.connect();
+  const added: string[] = [];
+  const skipped: string[] = [];
+  try {
+    await client.query("begin");
+    for (const input of inputs) {
+      const { rowCount } = await client.query(
+        `insert into repo (name, path, envs, remote, done_envs)
+         values ($1, $2, $3::text[], $4, $5::text[])
+         on conflict (name) do nothing`,
+        [input.name, input.path, input.envs, input.remote, input.doneEnvs],
+      );
+      (rowCount ? added : skipped).push(input.name);
+    }
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return { added, skipped };
+}
+
 export async function removeRepo(id: number): Promise<boolean> {
   const { rowCount } = await pool.query("delete from repo where id = $1", [id]);
   return (rowCount ?? 0) > 0;

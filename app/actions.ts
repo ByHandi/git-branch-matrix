@@ -1,12 +1,13 @@
 "use server";
 
 import { existsSync } from "node:fs";
+import { basename, dirname } from "node:path";
 
 import { revalidatePath } from "next/cache";
 
-import { BROWSE_ROOT, type Listing, listDir } from "@/lib/browse";
-import { addRepo, deleteNote, removeRepo, upsertNote } from "@/lib/db";
-import { GitError, type RepoProbe, probeRepo } from "@/lib/git";
+import { BROWSE_ROOT, type Listing, findRepos, listDir } from "@/lib/browse";
+import { addRepo, addReposIfNew, deleteNote, listRepos, removeRepo, upsertNote } from "@/lib/db";
+import { DEFAULTS, GitError, type RepoProbe, probeRepo } from "@/lib/git";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -97,4 +98,103 @@ export async function probeRepoAction(path: string): Promise<ProbeResult> {
 
 export async function browseRootAction(): Promise<string> {
   return BROWSE_ROOT;
+}
+
+export type ScanCandidate = {
+  path: string;
+  name: string;
+  remote: string;
+  /** env branches found in the repo, earliest stage first; empty when none look like one */
+  envs: string[];
+  branchCount: number;
+};
+
+export type ScanResult =
+  | { ok: true; root: string; candidates: ScanCandidate[]; tracked: number; truncated: boolean }
+  | { ok: false; error: string };
+
+/** Every git repo under `path` that is not tracked yet, with its envs guessed. */
+export async function scanReposAction(path?: string): Promise<ScanResult> {
+  let found: Awaited<ReturnType<typeof findRepos>>;
+  try {
+    found = await findRepos(path);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "failed to scan" };
+  }
+
+  const existing = await listRepos(true);
+  const trackedPaths = new Set(existing.map((r) => r.path));
+  const fresh = found.repos.filter((p) => !trackedPaths.has(p));
+
+  // a few at a time: every probe spawns several git processes
+  const probes: (RepoProbe | null)[] = [];
+  for (let i = 0; i < fresh.length; i += 8) {
+    const batch = fresh.slice(i, i + 8).map((p) => probeRepo(p).catch(() => null));
+    probes.push(...(await Promise.all(batch)));
+  }
+
+  // Names are unique in the database. Two clones called "api" in different
+  // groups become "groupA/api" and "groupB/api" rather than one replacing the other.
+  const taken = new Set(existing.map((r) => r.name));
+  const baseCount = new Map<string, number>();
+  for (const p of fresh) baseCount.set(basename(p), (baseCount.get(basename(p)) ?? 0) + 1);
+
+  const candidates: ScanCandidate[] = [];
+  fresh.forEach((p, i) => {
+    const probe = probes[i];
+    if (!probe || trackedPaths.has(probe.toplevel)) return;
+
+    const base = basename(p);
+    let name =
+      taken.has(base) || baseCount.get(base)! > 1 ? `${basename(dirname(p))}/${base}` : base;
+    for (let n = 2; taken.has(name); n++) name = `${basename(dirname(p))}/${base}-${n}`;
+    taken.add(name);
+
+    candidates.push({
+      path: probe.toplevel,
+      name,
+      remote: probe.remote,
+      envs: probe.guessedEnvs,
+      branchCount: probe.branches.length,
+    });
+  });
+
+  return {
+    ok: true,
+    root: found.root,
+    candidates,
+    tracked: found.repos.length - fresh.length,
+    truncated: found.truncated,
+  };
+}
+
+export type AddReposResult =
+  | { ok: true; added: string[]; skipped: string[] }
+  | { ok: false; error: string };
+
+export async function addReposAction(
+  items: { name: string; path: string; remote: string; envs: string[] }[],
+): Promise<AddReposResult> {
+  const valid = items.filter((item) => item.name.trim() && existsSync(item.path));
+  if (!valid.length) return { ok: false, error: "nothing to add" };
+
+  try {
+    const result = await addReposIfNew(
+      valid.map((item) => {
+        const envs = item.envs.length ? item.envs : [...DEFAULTS.envs];
+        return {
+          name: item.name.trim(),
+          path: item.path,
+          remote: item.remote || DEFAULTS.remote,
+          envs,
+          // the last stages of the pipeline are the ones that mean "shipped"
+          doneEnvs: item.envs.length ? envs.slice(-2) : [...DEFAULTS.doneEnvs],
+        };
+      }),
+    );
+    revalidatePath("/", "layout");
+    return { ok: true, ...result };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "failed to save repos" };
+  }
 }
