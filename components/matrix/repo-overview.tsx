@@ -17,7 +17,7 @@ import {
 import FetchedBadge from "./fetched-badge";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
 import { PinToggle } from "./repo-toggles";
-import { ago, filterTickets, freshness, openByStage } from "./shared";
+import { STUCK_DAYS, ago, filterTickets, freshness, openByStage, stuck } from "./shared";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -230,6 +230,7 @@ export function RepoRow({ model, section }: { model: RepoView; section: string }
     [model, query, pendingOnly, authors],
   );
   const stages = useMemo(() => openByStage(model, tickets), [model, tickets]);
+  const stuckCount = useMemo(() => tickets.filter((t) => stuck(model, t)).length, [model, tickets]);
 
   if (collapsed.has(section)) return null;
   if (filtering && tickets.length === 0) return null;
@@ -252,6 +253,14 @@ export function RepoRow({ model, section }: { model: RepoView; section: string }
           <>
             <span className={open ? "font-semibold" : "text-muted-foreground"}>{open}</span>
             <span className="text-xs text-muted-foreground"> / {tickets.length}</span>
+            {stuckCount > 0 && (
+              <div
+                className="text-xs text-amber-600 dark:text-amber-400"
+                title={`open tickets that have sat in one env for over ${STUCK_DAYS} days`}
+              >
+                {stuckCount} stuck
+              </div>
+            )}
           </>
         )}
       </TableCell>

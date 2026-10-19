@@ -16,6 +16,7 @@ import {
   filterTickets,
   prTarget,
   sortTickets,
+  stuck,
   ticketLabel,
 } from "./shared";
 
@@ -81,6 +82,20 @@ function SortHead({
         <Icon className={cn("size-3", !active && "opacity-40")} />
       </button>
     </TableHead>
+  );
+}
+
+function StuckBadge({ model, ticket }: { model: RepoView; ticket: Ticket }) {
+  const info = stuck(model, ticket);
+  if (!info) return null;
+  return (
+    <Badge
+      variant="outline"
+      className="ml-2 border-amber-500/40 text-amber-600 dark:text-amber-400"
+      title={`In ${info.env} for ${info.days} days without moving on`}
+    >
+      stuck {info.days}d
+    </Badge>
   );
 }
 
@@ -213,6 +228,7 @@ function RepoCard({ model, query, pendingOnly, authors, onSelect, onAuthorClick,
                           no ticket
                         </Badge>
                       )}
+                      <StuckBadge model={model} ticket={ticket} />
                       {ticket.combined && (
                         <Badge variant="secondary" className="ml-2" title="combined branch">
                           ⧉ combined

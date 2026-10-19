@@ -71,7 +71,9 @@ BRANCH_MATRIX_ROOT=/Users/handiani/projects npm run dev
 ```
 
 Every control (search, author filter, refresh, add repo) lives in the sticky header, so it stays
-reachable on long tables. Press `/` to jump to search, `d` to toggle the theme.
+reachable on long tables. Press `/` to jump to search, `d` to toggle the theme, and `⌘K` (Ctrl+K)
+to jump to any repo, page or ticket. Filters live in the URL, so a filtered view can be bookmarked
+or shared.
 
 ## Running it in the background
 

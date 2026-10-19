@@ -87,7 +87,7 @@ function Status({ cross }: { cross: CrossTicket }) {
 function TicketsView({ models }: { models: RepoView[] }) {
   useRegisterRepos(models);
   const router = useRouter();
-  const { query, setQuery, pendingOnly, authors, filtering, clearFilters } = useMatrix();
+  const { query, focusTicket, pendingOnly, authors, filtering, clearFilters } = useMatrix();
   const [multiOnly, setMultiOnly] = useState(false);
   const [partialOnly, setPartialOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
@@ -120,7 +120,7 @@ function TicketsView({ models }: { models: RepoView[] }) {
 
   // jump to the repo with the search narrowed to this ticket
   const open = (entry: Entry) => {
-    setQuery(ticketLabel(entry.ticket.id));
+    focusTicket(ticketLabel(entry.ticket.id));
     router.push(`/repo/${entry.model.repoId}`);
   };
 

@@ -42,10 +42,10 @@ whole table, stacked vertically — fine for 2–3 repos, heavy past 10.
 - [x] **Edit repo config.** Only Add and Remove exist today, so changing envs or the ticket pattern
       means remove + re-add, which drops the branch notes.
 
-## Quick wins
+## Quick wins ✅
 
-- [ ] **Filters in the URL** (`?q=…&author=…&open=1`) so they survive a refresh and can be
+- [x] **Filters in the URL** (`?q=…&author=…&open=1`) so they survive a refresh and can be
       bookmarked or shared.
-- [ ] **⌘K palette** to jump to a repo or ticket.
-- [ ] **Highlight stuck tickets**, e.g. sitting in staging for more than 7 days without reaching
+- [x] **⌘K palette** to jump to a repo or ticket.
+- [x] **Highlight stuck tickets**, e.g. sitting in staging for more than 7 days without reaching
       release.

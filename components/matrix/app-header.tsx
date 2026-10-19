@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useTransition } from "react";
 
 import AddRepoDialog from "./add-repo-dialog";
 import AuthorFilter from "./author-filter";
+import CommandPalette from "./command-palette";
 import Logo from "./logo";
 import { useMatrix } from "./matrix-context";
 import { authorOptions } from "./shared";
@@ -118,6 +119,7 @@ function AppHeader() {
           <TooltipContent>Re-read from git</TooltipContent>
         </Tooltip>
 
+        <CommandPalette />
         <AddRepoDialog />
       </div>
     </header>

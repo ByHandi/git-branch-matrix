@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { BROWSE_ROOT, type Listing, findRepos, listDir } from "@/lib/browse";
 import {
   type RepoConfig,
+  type RepoSettings,
   addRepo,
   addReposIfNew,
   deleteNote,
@@ -15,6 +16,7 @@ import {
   patchRepo,
   removeRepo,
   reorderRepos,
+  toSettings,
   updateRepo,
   upsertNote,
 } from "@/lib/db";
@@ -262,4 +264,9 @@ export async function addReposAction(
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "failed to save repos" };
   }
+}
+
+/** Every repo, archived ones included, for the command palette. Reads Postgres only — no git. */
+export async function listReposAction(): Promise<RepoSettings[]> {
+  return (await listRepos(true)).map(toSettings);
 }

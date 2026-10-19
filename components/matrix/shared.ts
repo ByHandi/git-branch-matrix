@@ -107,6 +107,23 @@ export function openByStage(model: RepoView, tickets: Ticket[]) {
   return counts;
 }
 
+export const STUCK_DAYS = 7;
+
+/**
+ * How long an open ticket has sat in its furthest env without moving on, when
+ * that is past STUCK_DAYS — otherwise null. Null too when git can't date the
+ * merge (a branch merged without a merge commit has no date to go by).
+ */
+export function stuck(model: RepoView, ticket: Ticket): { env: string; days: number } | null {
+  if (ticket.done) return null;
+  let env: string | null = null;
+  for (const e of model.envs) if (ticket.envs[e]) env = e;
+  const since = env && ticket.envs[env].date;
+  if (!env || !since) return null;
+  const days = Math.floor((Date.now() - new Date(since).getTime()) / 86_400_000);
+  return days > STUCK_DAYS ? { env, days } : null;
+}
+
 /**
  * Where a "create PR" link for this ticket/env should point, or null when there
  * is nothing sensible to link to: already merged, no usable remote, the branch
