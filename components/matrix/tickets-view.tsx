@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 import { CheckIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -88,7 +86,6 @@ function Status({ cross }: { cross: CrossTicket }) {
 
 function TicketsView({ models }: { models: RepoView[] }) {
   useRegisterRepos(models);
-  const router = useRouter();
   const { query, focusTicket, pendingOnly, authors, tags, filtering, clearFilters } = useMatrix();
   const [multiOnly, setMultiOnly] = useState(false);
   const [partialOnly, setPartialOnly] = useState(false);
@@ -127,8 +124,7 @@ function TicketsView({ models }: { models: RepoView[] }) {
 
   // jump to the repo with the search narrowed to this ticket
   const open = (entry: Entry) => {
-    focusTicket(ticketLabel(entry.ticket.id));
-    router.push(`/repo/${entry.model.repoId}`);
+    focusTicket(ticketLabel(entry.ticket.id), `/repo/${entry.model.repoId}`);
   };
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   createContext,
@@ -11,6 +11,8 @@ import {
   useRef,
   useState,
 } from "react";
+
+import type { Filters } from "./shared";
 
 import type { RepoView } from "@/lib/overview";
 
@@ -27,8 +29,14 @@ type MatrixState = {
   /** true when any filter narrows the tickets shown */
   filtering: boolean;
   clearFilters: () => void;
-  /** narrow to one ticket, dropping filters that could hide it (e.g. a done ticket under "Open only") */
-  focusTicket: (ticket: string) => void;
+  /**
+   * Go to `path` with these filters applied there. Use this rather than setting
+   * filters and pushing separately: that would rewrite the URL of the page being
+   * left, and Back would return to it already filtered.
+   */
+  navigate: (path: string, filters: Partial<Filters>) => void;
+  /** open `path` narrowed to one ticket, dropping filters that could hide it (e.g. "Open only") */
+  focusTicket: (ticket: string, path: string) => void;
   /**
    * Repos currently on screen. Rows stream in one by one, so nothing above them
    * gets the full list as a prop — each one registers itself once it has loaded.
@@ -46,18 +54,25 @@ const MatrixContext = createContext<MatrixState | null>(null);
  */
 export function MatrixProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [pendingOnly, setPendingOnly] = useState(false);
   const [authors, setAuthors] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [registry, setRegistry] = useState<Record<number, RepoView>>({});
   const urlRead = useRef(false);
+  // set by navigate(): hold URL writes until this path is on screen
+  const writeOn = useRef<string | null>(null);
 
   // Filters live in the URL (?q=…&author=…&open=1) so a refresh, a bookmark or a
   // shared link brings them back. In-app links drop the query string, so this
   // also re-applies it after navigating — the state is what persists.
   useEffect(() => {
     if (!urlRead.current) return;
+    if (writeOn.current) {
+      if (pathname !== writeOn.current) return;
+      writeOn.current = null;
+    }
     const url = new URL(window.location.href);
     for (const key of ["q", "author", "tag", "open"]) url.searchParams.delete(key);
     if (query.trim()) url.searchParams.set("q", query);
@@ -106,11 +121,22 @@ export function MatrixProvider({ children }: { children: React.ReactNode }) {
     setAuthors([]);
     setTags([]);
   }, []);
-  const focusTicket = useCallback((ticket: string) => {
-    setQuery(ticket);
-    setPendingOnly(() => false);
-    setAuthors([]);
-  }, []);
+  const navigate = useCallback(
+    (path: string, f: Partial<Filters>) => {
+      if (path !== window.location.pathname) writeOn.current = path;
+      if (f.query !== undefined) setQuery(f.query);
+      if (f.pendingOnly !== undefined) setPendingOnly(() => f.pendingOnly!);
+      if (f.authors) setAuthors(f.authors);
+      if (f.tags) setTags(f.tags);
+      router.push(path);
+    },
+    [router],
+  );
+  const focusTicket = useCallback(
+    (ticket: string, path: string) =>
+      navigate(path, { query: ticket, pendingOnly: false, authors: [] }),
+    [navigate],
+  );
 
   const value = useMemo<MatrixState>(
     () => ({
@@ -124,12 +150,24 @@ export function MatrixProvider({ children }: { children: React.ReactNode }) {
       setTags,
       filtering: Boolean(query.trim()) || pendingOnly || authors.length > 0 || tags.length > 0,
       clearFilters,
+      navigate,
       focusTicket,
       models: Object.values(registry),
       register,
       unregister,
     }),
-    [query, pendingOnly, authors, tags, registry, clearFilters, focusTicket, register, unregister],
+    [
+      query,
+      pendingOnly,
+      authors,
+      tags,
+      registry,
+      clearFilters,
+      navigate,
+      focusTicket,
+      register,
+      unregister,
+    ],
   );
 
   return <MatrixContext.Provider value={value}>{children}</MatrixContext.Provider>;

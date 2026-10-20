@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
-
-import { ChevronLeftIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import BackLink from "./back-link";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
 import RepoCard from "./repo-card";
 import TicketSheet from "./ticket-sheet";
@@ -34,13 +32,7 @@ function RepoDetail({
 
   return (
     <div className="flex flex-col gap-3 p-6">
-      <Link
-        href="/"
-        className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeftIcon className="size-3.5" />
-        All repos
-      </Link>
+      <BackLink />
 
       <RepoCard
         model={model}

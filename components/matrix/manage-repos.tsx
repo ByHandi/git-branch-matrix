@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 
-import { ChevronLeftIcon, GripVerticalIcon, PencilIcon } from "lucide-react";
+import { GripVerticalIcon, PencilIcon } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import BackLink from "./back-link";
 import EditRepoDialog from "./edit-repo-dialog";
 import { ArchiveToggle, PinToggle } from "./repo-toggles";
 import { TagInput } from "./tags";
@@ -121,13 +122,7 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
 
   return (
     <div className="flex flex-col gap-3 p-6">
-      <Link
-        href="/"
-        className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeftIcon className="size-3.5" />
-        All repos
-      </Link>
+      <BackLink />
 
       <div>
         <h2 className="text-sm font-semibold">Manage repos</h2>

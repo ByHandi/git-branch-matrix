@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, PencilIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -126,8 +124,7 @@ function RepoCard({
   groups,
   tagSuggestions,
 }: Props) {
-  const router = useRouter();
-  const { setTags } = useMatrix();
+  const { navigate } = useMatrix();
   const timeZone = useTimeZone();
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -165,8 +162,7 @@ function RepoCard({
             key={tag}
             tag={tag}
             onClick={(t) => {
-              setTags([t]);
-              router.push("/");
+              navigate("/", { tags: [t] });
             }}
           />
         ))}

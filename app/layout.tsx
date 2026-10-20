@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 
 import "./globals.css";
 
+import AppNavigationTracker from "@/components/app-navigation-tracker";
 import AppHeader from "@/components/matrix/app-header";
 import { MatrixProvider } from "@/components/matrix/matrix-context";
 import Providers from "@/components/providers";
@@ -40,6 +41,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <TooltipProvider>
+            <AppNavigationTracker />
             <MatrixProvider>
               <AppHeader />
               <main>{children}</main>

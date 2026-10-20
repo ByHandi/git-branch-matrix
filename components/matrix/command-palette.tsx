@@ -36,7 +36,7 @@ const MAX_TICKETS = 8;
 /** ⌘K / Ctrl+K: jump to a page, a repo or a ticket without reaching for the mouse. */
 function CommandPalette() {
   const router = useRouter();
-  const { models, setQuery, setTags, focusTicket } = useMatrix();
+  const { models, navigate, focusTicket } = useMatrix();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [active, setActive] = useState(0);
@@ -112,8 +112,7 @@ function CommandPalette() {
           hint: model.repoName,
           icon: TicketIcon,
           run: () => {
-            focusTicket(label);
-            router.push(`/repo/${model.repoId}`);
+            focusTicket(label, `/repo/${model.repoId}`);
           },
         });
       }
@@ -123,8 +122,7 @@ function CommandPalette() {
         label: `Find “${text.trim()}” in every repo`,
         icon: SearchIcon,
         run: () => {
-          setQuery(text.trim());
-          router.push("/tickets");
+          navigate("/tickets", { query: text.trim() });
         },
       });
     }
@@ -139,13 +137,12 @@ function CommandPalette() {
         hint: `${repos.filter((r) => r.tags.includes(tag)).length} repos`,
         icon: TagIcon,
         run: () => {
-          setTags([tag]);
-          router.push("/");
+          navigate("/", { tags: [tag] });
         },
       }));
 
     return [...pages, ...repoItems, ...tagItems, ...ticketItems];
-  }, [text, repos, models, router, setQuery, setTags, focusTicket]);
+  }, [text, repos, models, router, navigate, focusTicket]);
 
   useEffect(() => setActive(0), [text]);
 
