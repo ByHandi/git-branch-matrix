@@ -113,9 +113,15 @@ Browsing is confined to a single root, `$HOME` by default. Change it with `BRANC
 BRANCH_MATRIX_ROOT=~/projects npm run dev
 ```
 
-Every page is fixed to the viewport: the header with every control (search, author and tag
-filters, refresh, add repo) never scrolls away, and only the list itself scrolls — the table on
-the overview, a repo and Tickets, the sections on Manage repos — with its column headings pinned.
+The header holds only navigation and ⌘K. Everything that acts on what a page lists sits in that
+page's own toolbar: search, tag and author filters and "Open only" on the overview, Tickets and a
+repo (Tag where several repos are listed); refresh (fetch the repos on screen) on the overview,
+Tickets and a repo's card; **+ Repo** on the overview and Manage repos. Filters still follow you
+from page to page — only where they are drawn changed.
+
+Every page is fixed to the viewport: the header and toolbar never scroll away, and only the list
+itself scrolls — the table on the overview, a repo and Tickets, the sections on Manage repos — with
+its column headings pinned.
 **Back** returns you to the list where you left it, filters and scroll position included.
 
 Press `/` to jump to search, `d` to toggle the theme, and `⌘K` (Ctrl+K) to jump to any repo, page

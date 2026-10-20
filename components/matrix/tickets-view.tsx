@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import Ago from "./ago";
 import { useMatrix, useRegisterRepos } from "./matrix-context";
+import { PageFilters, RefreshButton } from "./page-filters";
 import { filterTickets, ticketLabel } from "./shared";
 
 import { Button } from "@/components/ui/button";
@@ -136,7 +137,22 @@ function TicketsView({ models }: { models: RepoView[] }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <PageFilters showTags />
+        <Button
+          size="sm"
+          variant={multiOnly ? "secondary" : "outline"}
+          aria-pressed={multiOnly}
+          onClick={() => setMultiOnly((v) => !v)}
+        >
+          In 2+ repos only
+        </Button>
+        <div className="ml-auto">
+          <RefreshButton />
+        </div>
+      </div>
+
+      <div className="shrink-0 text-xs text-muted-foreground">
         <p>
           {listed.length} ticket{listed.length === 1 ? "" : "s"} across {inScope.length} repo
           {inScope.length === 1 ? "" : "s"}
@@ -156,15 +172,6 @@ function TicketsView({ models }: { models: RepoView[] }) {
             </>
           )}
         </p>
-        <Button
-          size="sm"
-          variant={multiOnly ? "secondary" : "outline"}
-          aria-pressed={multiOnly}
-          className="ml-auto h-7 text-xs"
-          onClick={() => setMultiOnly((v) => !v)}
-        >
-          In 2+ repos only
-        </Button>
       </div>
 
       <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card">

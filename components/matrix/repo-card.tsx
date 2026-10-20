@@ -9,6 +9,7 @@ import Ago from "./ago";
 import EditRepoDialog from "./edit-repo-dialog";
 import FetchedBadge from "./fetched-badge";
 import { useMatrix } from "./matrix-context";
+import { RefreshButton } from "./page-filters";
 import { ArchiveToggle, PinToggle } from "./repo-toggles";
 import {
   DEFAULT_PAGE_SIZE,
@@ -189,6 +190,7 @@ function RepoCard(props: Props) {
         {model.settings.archived && <Badge variant="outline">archived</Badge>}
 
         <div className="ml-auto flex items-center gap-1">
+          <RefreshButton />
           <PinToggle settings={model.settings} />
           <EditRepoDialog settings={model.settings} groups={groups} tags={tagSuggestions}>
             <Tooltip description={`Edit ${model.repo}`}>

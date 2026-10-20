@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import BackLink from "./back-link";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
+import { PageFilters } from "./page-filters";
 import RepoCard from "./repo-card";
 import TicketSheet from "./ticket-sheet";
 
@@ -31,7 +32,10 @@ function RepoDetail({ model, groups, tags }: RepoDetailProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
-      <BackLink />
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+        <BackLink />
+        <PageFilters />
+      </div>
 
       <RepoCard
         model={model}

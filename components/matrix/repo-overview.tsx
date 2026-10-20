@@ -14,15 +14,17 @@ import {
   useState,
 } from "react";
 
+import AddRepoDialog from "./add-repo-dialog";
 import Ago from "./ago";
 import FetchedBadge from "./fetched-badge";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
+import { PageFilters, RefreshButton } from "./page-filters";
 import { PinToggle } from "./repo-toggles";
 import { STUCK_DAYS, freshness, matchRepo, openByStage, stuck } from "./shared";
 import { TagChip } from "./tags";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -104,18 +106,24 @@ export function RepoOverview({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <p>
-          {total} repo{total === 1 ? "" : "s"} · {open} open{filtering && " matching the filter"}
-          {loading > 0 && ` · reading ${loading} from git…`}
-          {stale > 0 && (
-            <span className="text-destructive"> · {stale} not fetched in over a week</span>
-          )}
-        </p>
-        <Link href="/manage" className="ml-auto hover:text-foreground hover:underline">
-          Manage repos{archived > 0 && ` · ${archived} archived`}
-        </Link>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <PageFilters showTags />
+        <div className="ml-auto flex items-center gap-1">
+          <RefreshButton />
+          <Link href="/manage" className={buttonVariants({ size: "sm", variant: "ghost" })}>
+            Manage repos{archived > 0 && ` · ${archived} archived`}
+          </Link>
+          <AddRepoDialog />
+        </div>
       </div>
+
+      <p className="shrink-0 text-xs text-muted-foreground">
+        {total} repo{total === 1 ? "" : "s"} · {open} open{filtering && " matching the filter"}
+        {loading > 0 && ` · reading ${loading} from git…`}
+        {stale > 0 && (
+          <span className="text-destructive"> · {stale} not fetched in over a week</span>
+        )}
+      </p>
 
       <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card">
         <Table containerRef={scrollRef} containerClassName="min-h-0 overflow-auto">

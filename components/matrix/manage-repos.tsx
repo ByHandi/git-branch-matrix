@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import Tooltip from "../shared/tooltip";
 
+import AddRepoDialog from "./add-repo-dialog";
 import BackLink from "./back-link";
 import EditRepoDialog from "./edit-repo-dialog";
 import { ArchiveToggle, PinToggle } from "./repo-toggles";
@@ -128,12 +129,17 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
       <BackLink />
 
-      <div className="shrink-0">
-        <h2 className="text-sm font-semibold">Manage repos</h2>
-        <p className="text-xs text-muted-foreground">
-          Drag the handle (or focus it and press ↑ ↓) to reorder within a section. Typing a group
-          name moves the repo into that section; tags are free-form labels to filter by.
-        </p>
+      <div className="flex shrink-0 items-start gap-4">
+        <div>
+          <h2 className="text-sm font-semibold">Manage repos</h2>
+          <p className="text-xs text-muted-foreground">
+            Drag the handle (or focus it and press ↑ ↓) to reorder within a section. Typing a group
+            name moves the repo into that section; tags are free-form labels to filter by.
+          </p>
+        </div>
+        <div className="ml-auto">
+          <AddRepoDialog />
+        </div>
       </div>
 
       <datalist id="manage-groups">
