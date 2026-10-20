@@ -184,7 +184,11 @@ function RepoCard(props: Props) {
           </Badge>
         )}
         {model.missingEnvs.length > 0 && (
-          <Badge variant="outline" title="these environment branches do not exist in this repo">
+          <Badge
+            variant="outline"
+            title="these environment branches do not exist in this repo"
+            className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
             missing: {model.missingEnvs.join(", ")}
           </Badge>
         )}

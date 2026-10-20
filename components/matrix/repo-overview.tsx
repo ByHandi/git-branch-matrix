@@ -335,7 +335,7 @@ export function RepoRow({ model, section }: { model: RepoView; section: string }
             {model.missingEnvs.length > 0 && (
               <Badge
                 variant="outline"
-                className="ml-1"
+                className="ml-1 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                 title="these environment branches do not exist in this repo"
               >
                 missing: {model.missingEnvs.join(", ")}
