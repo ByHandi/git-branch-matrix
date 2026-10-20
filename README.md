@@ -24,13 +24,22 @@ again (or pipe the file into `psql` for a Postgres in Docker).
 Meant for any Docker runtime — Docker Desktop, OrbStack, or Docker Engine on Linux.
 
 ```sh
-cp .env.example .env.docker   # set BRANCH_MATRIX_DB with host.docker.internal instead of localhost
+cp .env.example .env.docker   # then pick a Postgres, below
 npm run docker:up             # build + (re)start → http://localhost:4321
 ```
 
+Postgres, one of:
+
+- **Bundled** — no Postgres of your own needed. In `.env.docker`, set `COMPOSE_PROFILES=db` and
+  drop `BRANCH_MATRIX_DB`. Compose then also starts Postgres 17 (data in the `pgdata` volume,
+  published on `127.0.0.1:5433`) and applies `db/schema.sql` before the app starts, on every
+  `docker:up` — so after a pull there is no `db:init` to remember.
+- **Your own** — set `BRANCH_MATRIX_DB` in `.env.docker`, with `host.docker.internal` instead of
+  `localhost` for a Postgres on the host, and run `npm run db:init` against it yourself.
+
 `npm run docker:up` is `docker compose --env-file .env.docker up -d --build`, so `.env.docker` is
-the one file to edit: it fills `docker-compose.yml` (`BRANCH_MATRIX_ROOT`, `PORT`,
-`NEXT_PUBLIC_TIME_ZONE`) and becomes the container's environment (`BRANCH_MATRIX_DB`, `TZ`).
+the one file to edit: it fills `docker-compose.yml` (`COMPOSE_PROFILES`, `BRANCH_MATRIX_ROOT`,
+`PORT`, `NEXT_PUBLIC_TIME_ZONE`, …) and becomes the container's environment (`TZ`).
 
 `BRANCH_MATRIX_ROOT` (default `~/projects`) is mounted read-only at the same path, so repo paths
 stay valid both natively and in the container.
@@ -166,8 +175,8 @@ scripts are macOS-only and refuse to run elsewhere:
 | `scripts/fetch-helper.sh` | launchd LaunchAgent             | a systemd user unit / Task Scheduler running `npm run fetch-helper`                    |
 | `scripts/hostname.sh`     | `/etc/hosts`, pf, `dscacheutil` | add `127.0.0.1 gbm.test` to your hosts file by hand                                    |
 
-`npm run db:init` needs the Postgres client tools (`createdb`, `psql`) on your PATH; with Postgres
-in Docker, pipe `db/schema.sql` into `psql` inside that container instead.
+`npm run db:init` needs the Postgres client tools (`createdb`, `psql`) on your PATH. Without them,
+use the bundled Postgres (`COMPOSE_PROFILES=db`), which applies the schema itself.
 
 Dates render in `NEXT_PUBLIC_TIME_ZONE` (default UTC) on the server and switch to the browser's
 own zone after hydration — set it to yours to avoid the brief jump.

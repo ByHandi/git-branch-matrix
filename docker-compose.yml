@@ -2,6 +2,9 @@ name: git-branch-matrix
 
 # Run with `npm run docker:up`, which passes `--env-file .env.docker`: that one file both fills
 # the ${…} below and becomes the container's environment. Copy it from .env.example.
+#
+# No Postgres of your own? Put COMPOSE_PROFILES=db in .env.docker: `db` and `migrate` below start
+# too, and BRANCH_MATRIX_DB defaults to them.
 services:
   app:
     build:
@@ -11,13 +14,19 @@ services:
         NEXT_PUBLIC_TIME_ZONE: ${NEXT_PUBLIC_TIME_ZONE:-UTC}
     image: git-branch-matrix
     restart: unless-stopped
-    # BRANCH_MATRIX_DB lives here (gitignored). Inside the container `localhost`
-    # is the container itself — reach the host's Postgres via host.docker.internal.
     env_file: .env.docker
     environment:
+      # Your own Postgres: set BRANCH_MATRIX_DB in .env.docker, with host.docker.internal for a
+      # Postgres on the host — inside the container `localhost` is the container itself.
+      BRANCH_MATRIX_DB: ${BRANCH_MATRIX_DB:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/branch_matrix}
       BRANCH_MATRIX_ROOT: ${BRANCH_MATRIX_ROOT:-${HOME}/projects}
-      # git fetch runs on the host, not in here: scripts/fetch-helper.sh install
+      # git fetch runs on the host, not in here: npm run fetch-helper
       FETCH_HELPER_URL: ${FETCH_HELPER_URL:-http://host.docker.internal:4329}
+    depends_on:
+      # only when the db profile is on; otherwise there is nothing to wait for
+      migrate:
+        condition: service_completed_successfully
+        required: false
     # Docker Desktop and OrbStack provide host.docker.internal on their own; plain Docker Engine
     # on Linux only does with this line. Harmless where it already exists.
     extra_hosts:
@@ -32,3 +41,48 @@ services:
     labels:
       # OrbStack only (http://gbm.orb.local); every other runtime ignores the label
       dev.orbstack.domains: gbm.orb.local
+
+  db:
+    profiles: [db]
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: branch_matrix
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # loopback only, and not 5432 so it never fights a Postgres already on the host;
+      # a native `npm run dev` can use it at localhost:5433
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d branch_matrix"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Applies db/schema.sql on every `docker:up`. It is idempotent and carries its own migrations,
+  # so a pull that adds a column needs nothing more than the usual rebuild.
+  migrate:
+    profiles: [db]
+    image: postgres:17-alpine
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - ./db/schema.sql:/schema.sql:ro
+    command:
+      - psql
+      - --host=db
+      - --username=${POSTGRES_USER:-postgres}
+      - --dbname=branch_matrix
+      - --set=ON_ERROR_STOP=1
+      - --quiet
+      - --file=/schema.sql
+    restart: "no"
+
+volumes:
+  pgdata:
