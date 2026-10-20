@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { RefreshCwIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useTransition } from "react";
+import { toast } from "sonner";
 
 import AddRepoDialog from "./add-repo-dialog";
 import AuthorFilter from "./author-filter";
@@ -13,6 +14,7 @@ import Logo from "./logo";
 import { useMatrix } from "./matrix-context";
 import { authorOptions } from "./shared";
 
+import { fetchReposAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -78,11 +80,29 @@ function AppHeader() {
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([value, count]) => ({ value, count }));
   }, [models, tags]);
+  // Fetch the repos on screen through the helper on the Mac, then re-read them.
+  // Without the helper it still re-reads — the data is just as old as the last fetch.
+  const refresh = () =>
+    startRefresh(async () => {
+      const result = await fetchReposAction(models.map((m) => m.repoId));
+      if (!result.ok) {
+        toast.warning("Re-read without fetching", { description: result.error });
+      } else if (result.failed.length) {
+        toast.error(`Fetch failed for ${result.failed.map((f) => f.name).join(", ")}`, {
+          description: result.failed[0].error,
+        });
+      } else if (result.fetched.length) {
+        const n = result.fetched.length;
+        toast.success(`Fetched ${n} repo${n === 1 ? "" : "s"}`);
+      }
+      router.refresh();
+    });
+
   // a tag picks repos, so it only means something where several repos are listed
   const showTags = !pathname.startsWith("/repo/") && !pathname.startsWith("/manage");
 
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/95 px-6 py-3 backdrop-blur supports-backdrop-filter:bg-background/75">
       <Link href="/" className="flex items-center gap-3">
         <Logo className="size-7 shrink-0" />
         <div>
@@ -142,14 +162,14 @@ function AppHeader() {
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Re-read from git"
-              isLoading={refreshing}
-              onClick={() => startRefresh(() => router.refresh())}
+              aria-label="Fetch from remote and re-read"
+              disabled={refreshing}
+              onClick={refresh}
             >
-              <RefreshCwIcon className="size-4" />
+              <RefreshCwIcon className={cn("size-4", { "animate-spin": refreshing })} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Re-read from git</TooltipContent>
+          <TooltipContent>Fetch from remote and re-read</TooltipContent>
         </Tooltip>
 
         <CommandPalette />

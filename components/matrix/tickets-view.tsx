@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import Ago from "./ago";
 import { useMatrix, useRegisterRepos } from "./matrix-context";
-import { ago, filterTickets, ticketLabel } from "./shared";
+import { filterTickets, ticketLabel } from "./shared";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -181,7 +182,7 @@ function TicketsView({ models }: { models: RepoView[] }) {
                 <TableHead>Status</TableHead>
                 <TableHead>Where it is, per repo</TableHead>
                 <TableHead>Author</TableHead>
-                <TableHead className="pr-4">Updated</TableHead>
+                <TableHead className="pr-4">Last commit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -223,7 +224,7 @@ function TicketsView({ models }: { models: RepoView[] }) {
                     )}
                   </TableCell>
                   <TableCell className="pr-4 align-top text-xs whitespace-nowrap text-muted-foreground">
-                    {ago(cross.date)}
+                    <Ago iso={cross.date} />
                   </TableCell>
                 </TableRow>
               ))}

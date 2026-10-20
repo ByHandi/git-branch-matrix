@@ -3,10 +3,22 @@ import type { RepoView } from "@/lib/overview";
 import { pullRequestUrl } from "@/lib/remote";
 import { hasTags } from "@/lib/tags";
 
-export function ago(iso: string | null): string {
+/**
+ * "14h ago". With `now` (a live client clock) it goes down to minutes; without
+ * it, on the server and while hydrating, it stays at whole days so both sides
+ * render the same text.
+ */
+export function ago(iso: string | null, now?: number | null): string {
   if (!iso) return "";
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days < 1) return "today";
+  const ms = (now ?? Date.now()) - new Date(iso).getTime();
+  const days = Math.floor(ms / 86_400_000);
+  if (days < 1) {
+    if (now == null) return "today";
+    const minutes = Math.floor(ms / 60_000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    return `${Math.floor(minutes / 60)}h ago`;
+  }
   if (days < 30) return `${days}d ago`;
   if (days < 365) return `${Math.round(days / 30)}mo ago`;
   return `${Math.round(days / 365)}y ago`;

@@ -4,7 +4,8 @@ import { ExternalLinkIcon } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { ago, branchPrUrl, ticketLabel } from "./shared";
+import Ago from "./ago";
+import { branchPrUrl, ticketLabel } from "./shared";
 
 import { saveNoteAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useTimeZone } from "@/hooks/use-time-zone";
 import type { Branch, Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
+import { formatDate } from "@/lib/time";
 
 type Props = {
   open: boolean;
@@ -32,6 +35,7 @@ function BranchEditor({ model, branch }: { model: RepoView; branch: Branch }) {
   const [status, setStatus] = useState(branch.status ?? "");
   const [tickets, setTickets] = useState((branch.manualTickets ?? []).join(", "));
   const [pending, startTransition] = useTransition();
+  const timeZone = useTimeZone();
 
   // the sheet is reused across tickets, so re-sync when the branch changes
   useEffect(() => {
@@ -95,7 +99,7 @@ function BranchEditor({ model, branch }: { model: RepoView; branch: Branch }) {
               )}
               {cell?.pr && <span className="text-muted-foreground">PR #{cell.pr}</span>}
               {cell?.date && (
-                <span className="text-muted-foreground">{cell.date.slice(0, 10)}</span>
+                <span className="text-muted-foreground">{formatDate(cell.date, timeZone)}</span>
               )}
 
               {prUrl && (
@@ -152,7 +156,7 @@ function TicketSheet({ open, onOpenChange, model, ticket }: Props) {
             <SheetHeader>
               <SheetTitle className="font-mono">{ticketLabel(ticket.id)}</SheetTitle>
               <SheetDescription>
-                {model.repoName} · updated {ago(ticket.date)}
+                {model.repoName} · <Ago iso={ticket.date} prefix="last commit " />
               </SheetDescription>
             </SheetHeader>
 

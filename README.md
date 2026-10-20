@@ -26,7 +26,18 @@ docker compose up -d --build   # http://localhost:4321 or http://gbm.orb.local
 ```
 
 `~/projects` is mounted read-only at the same path, so repo paths stay valid both natively and in
-the container. Rebuild after code changes with `docker compose up -d --build`; don't run the
+the container.
+
+### Fetching
+
+The app never writes to git, so the refresh button's `git fetch --prune` runs in a small helper on
+the Mac instead — as you, with your own SSH keys, listening on `127.0.0.1:4329` only:
+
+```sh
+./scripts/fetch-helper.sh install   # auto-start at login; also: status, logs, uninstall
+```
+
+Without it the button still re-reads, it just can't fetch first. Rebuild after code changes with `docker compose up -d --build`; don't run the
 LaunchAgent from `scripts/service.sh` at the same time — both want port 4321.
 
 ### A nicer URL

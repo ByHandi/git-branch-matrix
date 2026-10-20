@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, PencilIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import Ago from "./ago";
 import EditRepoDialog from "./edit-repo-dialog";
 import FetchedBadge from "./fetched-badge";
 import { useMatrix } from "./matrix-context";
@@ -15,7 +16,6 @@ import {
   PAGE_SIZES,
   type Sort,
   type SortKey,
-  ago,
   filterTickets,
   prTarget,
   sortTickets,
@@ -41,8 +41,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Ticket } from "@/lib/git";
+import { useTimeZone } from "@/hooks/use-time-zone";
+import type { MergeCell, Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
+import { formatDateTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -64,18 +66,20 @@ function SortHead({
   sort,
   onSort,
   className,
+  title,
 }: {
   label: string;
   sortKey: SortKey;
   sort: Sort;
   onSort: (key: SortKey) => void;
   className?: string;
+  title?: string;
 }) {
   const active = sort.key === sortKey;
   const Icon = !active ? ChevronsUpDownIcon : sort.dir === "asc" ? ArrowUpIcon : ArrowDownIcon;
 
   return (
-    <TableHead className={className}>
+    <TableHead className={className} title={title}>
       <button
         type="button"
         onClick={() => onSort(sortKey)}
@@ -89,6 +93,13 @@ function SortHead({
       </button>
     </TableHead>
   );
+}
+
+function mergedTitle(env: string, cell: MergeCell, timeZone: string) {
+  const when = cell.date
+    ? formatDateTime(cell.date, timeZone)
+    : "date unknown (merged without a merge commit)";
+  return `Merged into ${env} · ${when}${cell.via ? ` via ${cell.via}` : ""}`;
 }
 
 function StuckBadge({ model, ticket }: { model: RepoView; ticket: Ticket }) {
@@ -117,6 +128,7 @@ function RepoCard({
 }: Props) {
   const router = useRouter();
   const { setTags } = useMatrix();
+  const timeZone = useTimeZone();
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
@@ -228,7 +240,13 @@ function RepoCard({
                       </TableHead>
                     );
                   })}
-                  <SortHead label="Updated" sortKey="date" sort={sort} onSort={toggleSort} />
+                  <SortHead
+                    label="Last commit"
+                    title="Newest commit on the ticket's branches — not when it was merged; hover a ✓ for that"
+                    sortKey="date"
+                    sort={sort}
+                    onSort={toggleSort}
+                  />
                 </TableRow>
               </TableHeader>
 
@@ -310,7 +328,10 @@ function RepoCard({
                       return (
                         <TableCell key={env} className="text-center">
                           {cell ? (
-                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                            <span
+                              className="font-medium text-emerald-600 dark:text-emerald-400"
+                              title={mergedTitle(env, cell, timeZone)}
+                            >
                               ✓
                               {cell.pr ? (
                                 <span className="ml-1 text-xs font-normal text-muted-foreground">
@@ -344,7 +365,7 @@ function RepoCard({
                     })}
 
                     <TableCell className="text-xs text-muted-foreground">
-                      {ago(ticket.date)}
+                      <Ago iso={ticket.date} />
                     </TableCell>
                   </TableRow>
                 ))}

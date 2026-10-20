@@ -14,10 +14,11 @@ import {
   useState,
 } from "react";
 
+import Ago from "./ago";
 import FetchedBadge from "./fetched-badge";
 import { useMatrix, useRegisterRepo } from "./matrix-context";
 import { PinToggle } from "./repo-toggles";
-import { STUCK_DAYS, ago, freshness, matchRepo, openByStage, stuck } from "./shared";
+import { STUCK_DAYS, freshness, matchRepo, openByStage, stuck } from "./shared";
 import { TagChip } from "./tags";
 
 import { Badge } from "@/components/ui/badge";
@@ -121,7 +122,7 @@ export function RepoOverview({
               <TableHead className="pl-4">Repo</TableHead>
               <TableHead className="text-right">Open</TableHead>
               <TableHead>Where open tickets are</TableHead>
-              <TableHead>Updated</TableHead>
+              <TableHead title="Newest commit across the repo's tickets">Last commit</TableHead>
               <TableHead>Fetched</TableHead>
               <TableHead className="w-16" />
             </TableRow>
@@ -335,7 +336,7 @@ export function RepoRow({ model, section }: { model: RepoView; section: string }
       </TableCell>
 
       <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
-        {ago(latest)}
+        <Ago iso={latest} />
       </TableCell>
 
       <TableCell>{!model.error && <FetchedBadge fetchedAt={model.fetchedAt} />}</TableCell>

@@ -1,5 +1,8 @@
 import { type Freshness, ago, freshness } from "./shared";
 
+import { useNow } from "@/hooks/use-now";
+import { useTimeZone } from "@/hooks/use-time-zone";
+import { formatDateTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const TONE: Record<Freshness, string> = {
@@ -14,12 +17,13 @@ const TONE: Record<Freshness, string> = {
  */
 function FetchedBadge({ fetchedAt, className }: { fetchedAt: string | null; className?: string }) {
   const level = freshness(fetchedAt);
-  // UTC on purpose: server and browser timezones differ, a local time would not hydrate
-  const when = fetchedAt ? `Last git fetch: ${fetchedAt.slice(0, 16).replace("T", " ")} UTC. ` : "";
+  const timeZone = useTimeZone();
+  const now = useNow();
+  const when = fetchedAt ? `Last git fetch: ${formatDateTime(fetchedAt, timeZone)}. ` : "";
 
   return (
     <span
-      title={`${when}Run \`git fetch\` in this repo to pick up newer merges.`}
+      title={`${when}The refresh button in the header fetches and re-reads.`}
       className={cn(
         "inline-flex items-center gap-1.5 text-xs whitespace-nowrap",
         TONE[level],
@@ -27,7 +31,7 @@ function FetchedBadge({ fetchedAt, className }: { fetchedAt: string | null; clas
       )}
     >
       <span className="size-1.5 rounded-full bg-current" />
-      {fetchedAt ? `fetched ${ago(fetchedAt)}` : "never fetched"}
+      {fetchedAt ? `fetched ${ago(fetchedAt, now)}` : "never fetched"}
     </span>
   );
 }

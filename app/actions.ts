@@ -276,3 +276,48 @@ export async function addReposAction(
 export async function listReposAction(): Promise<RepoSettings[]> {
   return (await listRepos(true)).map(toSettings);
 }
+
+// In Docker this is http://host.docker.internal:4329 (see docker-compose.yml).
+const FETCH_HELPER_URL = process.env.FETCH_HELPER_URL ?? "http://127.0.0.1:4329";
+
+export type FetchResult =
+  | { ok: true; fetched: string[]; failed: { name: string; error: string }[] }
+  | { ok: false; error: string };
+
+/**
+ * `git fetch --prune` the given repos through the helper on the Mac
+ * (scripts/fetch-helper.mjs). The app itself still never writes to git: the
+ * helper does, as the user, with their own SSH keys.
+ */
+export async function fetchReposAction(repoIds: number[]): Promise<FetchResult> {
+  const wanted = new Set(repoIds);
+  const repos = (await listRepos(true)).filter((r) => wanted.has(r.id));
+  if (!repos.length) return { ok: true, fetched: [], failed: [] };
+
+  let results: { path: string; ok: boolean; error?: string }[];
+  try {
+    const res = await fetch(`${FETCH_HELPER_URL}/fetch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ paths: repos.map((r) => r.path) }),
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!res.ok) return { ok: false, error: `fetch helper answered ${res.status}` };
+    results = (await res.json()).results;
+  } catch {
+    return {
+      ok: false,
+      error: "fetch helper is not running — start it with ./scripts/fetch-helper.sh install",
+    };
+  }
+
+  // no revalidatePath: the caller re-reads right after, once, whatever happened here
+  const byPath = new Map(repos.map((r) => [r.path, r.name]));
+  return {
+    ok: true,
+    fetched: results.filter((r) => r.ok).map((r) => byPath.get(r.path) ?? r.path),
+    failed: results
+      .filter((r) => !r.ok)
+      .map((r) => ({ name: byPath.get(r.path) ?? r.path, error: r.error ?? "failed" })),
+  };
+}
