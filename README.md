@@ -22,11 +22,15 @@ again (or pipe the file into `psql` for a Postgres in Docker).
 
 ```sh
 cp .env.local .env.docker   # then point the host at host.docker.internal instead of localhost
-docker compose up -d --build   # http://localhost:4321 or http://gbm.orb.local
+npm run docker:up           # docker compose up -d --build → http://localhost:4321 or http://gbm.orb.local
 ```
 
 `~/projects` is mounted read-only at the same path, so repo paths stay valid both natively and in
 the container.
+
+The container runs a production build baked into the image — it does not see your source. **After
+changing code, run `npm run docker:up` again**, or OrbStack keeps serving the old build. Don't run
+the LaunchAgent from `scripts/service.sh` at the same time — both want port 4321.
 
 ### Fetching
 
@@ -37,8 +41,10 @@ the Mac instead — as you, with your own SSH keys, listening on `127.0.0.1:4329
 ./scripts/fetch-helper.sh install   # auto-start at login; also: status, logs, uninstall
 ```
 
-Without it the button still re-reads, it just can't fetch first. Rebuild after code changes with `docker compose up -d --build`; don't run the
-LaunchAgent from `scripts/service.sh` at the same time — both want port 4321.
+Without it the button still re-reads, it just can't fetch first. The container reaches it through
+`FETCH_HELPER_URL` (`http://host.docker.internal:4329` in `docker-compose.yml`). The helper is
+confined to `BRANCH_MATRIX_ROOT` (default `~/projects`) and only fetches — it never touches a
+working tree.
 
 ### A nicer URL
 
@@ -81,10 +87,13 @@ Browsing is confined to a single root, `$HOME` by default. Change it with `BRANC
 BRANCH_MATRIX_ROOT=/Users/handiani/projects npm run dev
 ```
 
-Every control (search, author filter, refresh, add repo) lives in the sticky header, so it stays
-reachable on long tables. Press `/` to jump to search, `d` to toggle the theme, and `⌘K` (Ctrl+K)
-to jump to any repo, page or ticket. Filters live in the URL, so a filtered view can be bookmarked
-or shared.
+Every page is fixed to the viewport: the header with every control (search, author and tag
+filters, refresh, add repo) never scrolls away, and only the list itself scrolls — the table on
+the overview, a repo and Tickets, the sections on Manage repos — with its column headings pinned.
+**Back** returns you to the list where you left it, filters and scroll position included.
+
+Press `/` to jump to search, `d` to toggle the theme, and `⌘K` (Ctrl+K) to jump to any repo, page
+or ticket. Filters live in the URL, so a filtered view can be bookmarked or shared.
 
 Repos can sit in one **group** (a section on the overview) and carry any number of **tags**. The
 Tag filter shows only repos that have every selected tag; edit both from a repo's Edit dialog or
@@ -151,14 +160,20 @@ dimmed — they still show progress, they just do not gate completion.
   (manual notes)
 ```
 
-| File              | What it holds                                               |
-| ----------------- | ----------------------------------------------------------- |
-| `lib/git.ts`      | read-only git layer + `buildModel()`                        |
-| `lib/db.ts`       | Postgres queries, pool singleton on `globalThis`            |
-| `lib/browse.ts`   | directory listing for the folder picker, confined to a root |
-| `lib/overview.ts` | merges git + notes, reads every repo in parallel            |
-| `app/actions.ts`  | server actions: add/remove repo, save note                  |
-| `db/schema.sql`   | `repo` + `branch_note` tables                               |
+| File                       | What it holds                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `lib/git.ts`               | read-only git layer + `buildModel()`                                           |
+| `lib/db.ts`                | Postgres queries, pool singleton on `globalThis`                               |
+| `lib/browse.ts`            | folder picker listing and the `~/projects` scan, confined to a root            |
+| `lib/overview.ts`          | merges git + notes, reads every repo in parallel                               |
+| `lib/remote.ts`            | pull-request URLs per host — client-safe, no node APIs                         |
+| `lib/tags.ts`              | tag normalising and the AND match                                              |
+| `lib/time.ts`              | dates in the viewer's timezone (`NEXT_PUBLIC_TIME_ZONE` is the SSR fallback)   |
+| `app/actions.ts`           | server actions: add/edit/archive/reorder repos, notes, browse, scan, fetch     |
+| `hooks/use-scroll-memory`  | puts a list back where it was on Back, since the page itself never scrolls     |
+| `hooks/use-back-to`        | Back goes back in history when we came from inside the app, else to a fallback |
+| `scripts/fetch-helper.mjs` | the one process that runs `git fetch`, on the Mac, loopback only               |
+| `db/schema.sql`            | `repo` + `branch_note` tables, with idempotent migrations                      |
 
 ### Why it is built this way
 
@@ -236,16 +251,39 @@ The app is **Git Branch Matrix**, but a few identifiers still read `branch-matri
 The LaunchAgent label _was_ migrated (`com.branchmatrix.app` → `com.gitbranchmatrix.app`);
 `service.sh install` boots out the old one first, so you never end up with two.
 
+## Development
+
+```sh
+npm run lint        # must be 0 errors
+npm run typecheck
+npm run format
+```
+
+A Husky pre-commit hook (installed by `npm install` via `prepare`) runs Prettier + `eslint --fix`
+on the staged files through lint-staged, then `tsc --noEmit`. An ESLint error blocks the commit.
+
+**Complexity limits are errors**, as in service-inventory-frontend:
+
+- `complexity` ≤ 15 — counts every `?.`, `??`, `&&`, `||` and ternary.
+- `sonarjs/cognitive-complexity` ≤ 15 — weighs nesting.
+
+Fix a function that crosses either by extracting named helpers **in the same file** —
+`buildModel()` in `lib/git.ts` is the worked example — never with `eslint-disable`.
+`components/ui/**` is exempt: those are shadcn components published through `registry.json` /
+`public/r`, kept close to upstream.
+
 ## Limits
 
 - **Not deployable to Vercel or any serverless host.** This reads git clones from disk. Run it on
   your machine, or on a server that holds the clones.
-- **Only as fresh as your last `git fetch`.** This app never calls `git fetch` itself.
+- **Only as fresh as your last `git fetch`.** The app itself never fetches; the refresh button does,
+  through the fetch helper, when it is installed.
 - A squash merge with no ticket ID in the commit message is invisible — it shows up as `#<PR>`.
 - Merge commit scanning is capped by `scan_limit` per repo (default 500).
 - Environment guessing only matches common names (`development`, `staging`, `release`, `main`, …).
   A stale branch like `master` can be picked up — check before saving.
-- Tables paginate client-side (25 per page by default), sorted by **Updated desc**. Click a column
-  header to change it.
+- A repo's table paginates client-side (25 per page by default), sorted by **Last commit**, newest
+  first. Click a column header to change it. The page you are on is not in the URL, so Back
+  returns to page 1.
 - The folder picker is server-side, not an OS dialog. Browsers never hand a web page an absolute
   path, so there is no other way.

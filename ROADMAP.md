@@ -1,7 +1,7 @@
 # Roadmap
 
-UX work for when the dashboard tracks many repos. Today every repo renders as a full card with its
-whole table, stacked vertically — fine for 2–3 repos, heavy past 10.
+UX work for when the dashboard tracks many repos. It started with every repo rendered as a full card
+with its whole table, stacked vertically — fine for 2–3 repos, heavy past 10.
 
 ## Phase 1 — Scale to many repos ✅
 
@@ -53,3 +53,23 @@ whole table, stacked vertically — fine for 2–3 repos, heavy past 10.
 - [x] **⌘K palette** to jump to a repo or ticket.
 - [x] **Highlight stuck tickets**, e.g. sitting in staging for more than 7 days without reaching
       release.
+
+## Phase 4 — Daily use ✅
+
+- [x] **Fetch from the dashboard.** The refresh button runs `git fetch --prune` on the repos on
+      screen through `scripts/fetch-helper.mjs`, a loopback-only helper on the Mac that uses your
+      own SSH keys — the app and its read-only Docker mount still never write to git.
+- [x] **Dates in the viewer's timezone.** Git keeps each author's offset and the container runs
+      in UTC; absolute dates are now converted to the browser's zone after hydration.
+- [x] **Back that keeps your place.** Back from a repo or Manage returns to where you came from
+      with its filters intact, and falls back to the overview when the page was opened directly.
+- [x] **Fixed viewport.** Pages no longer scroll — only their list does, with column headings
+      pinned and the header, toolbars and pagination always in view. Scroll position is restored
+      on Back.
+
+## Housekeeping ✅
+
+- [x] **Complexity gate.** `complexity` and `sonarjs/cognitive-complexity` at 15, enforced by a
+      Husky + lint-staged pre-commit hook that also typechecks. `buildModel()`, `findRepos()` and
+      the cross-repo ticket grouping were split into named helpers to get under it.
+- [x] **`npm run docker:up`** rebuilds and restarts the OrbStack container in one step.
