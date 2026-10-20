@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// Runs `git fetch --prune` for the dashboard, on the Mac itself.
+// Runs `git fetch --prune` for the dashboard, on the host itself.
 //
 // The app only reads git, and in Docker it sees the repos through a read-only
 // mount with no access to your SSH keys. This helper is the one piece that
 // writes (refs/remotes + objects, never the working tree), and it does so as
 // you, with your own ~/.ssh setup. It listens on loopback only.
 //
-//   node scripts/fetch-helper.mjs          # usually started by ./scripts/fetch-helper.sh install
+//   npm run fetch-helper                   # foreground, any OS
+//   ./scripts/fetch-helper.sh install      # macOS: auto-start at login
 //
 // POST /fetch {"paths": ["/abs/repo", ...]}  ->  {"results": [{path, ok, ms, error?}]}
 // GET  /health                               ->  {"ok": true}
@@ -17,6 +18,9 @@ import { homedir } from "node:os";
 import { resolve, sep } from "node:path";
 
 const PORT = Number(process.env.FETCH_HELPER_PORT ?? 4329);
+// Loopback by default. On Linux with plain Docker Engine the container reaches the host through the
+// docker0 bridge, not loopback — set this to the bridge address (usually 172.17.0.1), never 0.0.0.0.
+const HOST = process.env.FETCH_HELPER_HOST ?? "127.0.0.1";
 // Same confinement as the app's folder picker: nothing outside this root is touched.
 const ROOT = resolve(process.env.BRANCH_MATRIX_ROOT ?? `${homedir()}/projects`);
 const CONCURRENCY = 6;
@@ -63,7 +67,8 @@ function send(res, status, body) {
 }
 
 const server = createServer((req, res) => {
-  if (req.method === "GET" && req.url === "/health") return send(res, 200, { ok: true, root: ROOT });
+  if (req.method === "GET" && req.url === "/health")
+    return send(res, 200, { ok: true, root: ROOT });
   if (req.method !== "POST" || req.url !== "/fetch") return send(res, 404, { error: "not found" });
 
   let raw = "";
@@ -76,7 +81,7 @@ const server = createServer((req, res) => {
     try {
       paths = JSON.parse(raw).paths;
     } catch {
-      return send(res, 400, { error: "body must be JSON: {\"paths\": [...]}" });
+      return send(res, 400, { error: 'body must be JSON: {"paths": [...]}' });
     }
     if (!Array.isArray(paths) || paths.length > MAX_PATHS) {
       return send(res, 400, { error: `paths must be an array of at most ${MAX_PATHS}` });
@@ -92,12 +97,17 @@ const server = createServer((req, res) => {
     const failed = results.filter((r) => !r.ok).length;
     console.log(
       `${new Date().toLocaleString("sv-SE")} fetched ${results.length - failed}/${results.length}` +
-        (failed ? ` — failed: ${results.filter((r) => !r.ok).map((r) => r.path).join(", ")}` : ""),
+        (failed
+          ? ` — failed: ${results
+              .filter((r) => !r.ok)
+              .map((r) => r.path)
+              .join(", ")}`
+          : ""),
     );
     send(res, 200, { results });
   });
 });
 
-server.listen(PORT, "127.0.0.1", () =>
-  console.log(`fetch helper on http://127.0.0.1:${PORT}, repos under ${ROOT}`),
+server.listen(PORT, HOST, () =>
+  console.log(`fetch helper on http://${HOST}:${PORT}, repos under ${ROOT}`),
 );

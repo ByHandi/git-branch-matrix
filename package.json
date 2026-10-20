@@ -13,8 +13,9 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "db:init": "createdb branch_matrix 2>/dev/null; psql -d branch_matrix -f db/schema.sql",
-    "docker:up": "docker compose up -d --build",
-    "prepare": "husky"
+    "docker:up": "docker compose --env-file .env.docker up -d --build",
+    "prepare": "husky",
+    "fetch-helper": "node scripts/fetch-helper.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

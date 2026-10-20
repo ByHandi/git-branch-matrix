@@ -285,7 +285,7 @@ export type FetchResult =
   | { ok: false; error: string };
 
 /**
- * `git fetch --prune` the given repos through the helper on the Mac
+ * `git fetch --prune` the given repos through the helper on the host
  * (scripts/fetch-helper.mjs). The app itself still never writes to git: the
  * helper does, as the user, with their own SSH keys.
  */

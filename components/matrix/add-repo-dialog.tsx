@@ -164,7 +164,7 @@ function AddRepoDialog() {
                 <InputText
                   required
                   label="Folder path"
-                  placeholder="/Users/handiani/projects/cg-erp"
+                  placeholder="/absolute/path/to/repo"
                   value={path}
                   onChange={(e) => setPath(e.target.value)}
                   description="Type it, or browse for it."

@@ -19,35 +19,51 @@ Override the port with `PORT=5000 npm run dev`.
 `db/schema.sql` is idempotent and carries its own migrations — after pulling, run `npm run db:init`
 again (or pipe the file into `psql` for a Postgres in Docker).
 
-### Docker / OrbStack
+### Docker
+
+Meant for any Docker runtime — Docker Desktop, OrbStack, or Docker Engine on Linux.
 
 ```sh
-cp .env.local .env.docker   # then point the host at host.docker.internal instead of localhost
-npm run docker:up           # docker compose up -d --build → http://localhost:4321 or http://gbm.orb.local
+cp .env.example .env.docker   # set BRANCH_MATRIX_DB with host.docker.internal instead of localhost
+npm run docker:up             # build + (re)start → http://localhost:4321
 ```
 
-`~/projects` is mounted read-only at the same path, so repo paths stay valid both natively and in
-the container.
+`npm run docker:up` is `docker compose --env-file .env.docker up -d --build`, so `.env.docker` is
+the one file to edit: it fills `docker-compose.yml` (`BRANCH_MATRIX_ROOT`, `PORT`,
+`NEXT_PUBLIC_TIME_ZONE`) and becomes the container's environment (`BRANCH_MATRIX_DB`, `TZ`).
+
+`BRANCH_MATRIX_ROOT` (default `~/projects`) is mounted read-only at the same path, so repo paths
+stay valid both natively and in the container.
 
 The container runs a production build baked into the image — it does not see your source. **After
-changing code, run `npm run docker:up` again**, or OrbStack keeps serving the old build. Don't run
-the LaunchAgent from `scripts/service.sh` at the same time — both want port 4321.
+changing code, run `npm run docker:up` again**, or the old build keeps being served. Don't run it
+alongside `scripts/service.sh` — both want port 4321.
+
+Per runtime:
+
+- **OrbStack** also serves it at `http://gbm.orb.local` (a label every other runtime ignores).
+- **Docker Engine on Linux** reaches the host through the docker0 bridge, not loopback. Postgres
+  and the fetch helper must listen there too — e.g. `FETCH_HELPER_HOST=172.17.0.1` for the helper
+  and `listen_addresses` / `pg_hba.conf` for Postgres. `docker-compose.yml` already maps
+  `host.docker.internal` to the host with `host-gateway`.
 
 ### Fetching
 
 The app never writes to git, so the refresh button's `git fetch --prune` runs in a small helper on
-the Mac instead — as you, with your own SSH keys, listening on `127.0.0.1:4329` only:
+the host instead — as you, with your own SSH keys, listening on `127.0.0.1:4329` only:
 
 ```sh
-./scripts/fetch-helper.sh install   # auto-start at login; also: status, logs, uninstall
+npm run fetch-helper                # foreground, any OS
+./scripts/fetch-helper.sh install   # macOS: auto-start at login; also status, logs, uninstall
 ```
 
-Without it the button still re-reads, it just can't fetch first. The container reaches it through
-`FETCH_HELPER_URL` (`http://host.docker.internal:4329` in `docker-compose.yml`). The helper is
-confined to `BRANCH_MATRIX_ROOT` (default `~/projects`) and only fetches — it never touches a
-working tree.
+Without it the button still re-reads, it just can't fetch first. The app reaches it through
+`FETCH_HELPER_URL` (`http://host.docker.internal:4329` in Docker). The helper is confined to
+`BRANCH_MATRIX_ROOT` (default `~/projects`) and only fetches — it never touches a working tree.
+It does not read `.env` files; set `FETCH_HELPER_PORT` / `FETCH_HELPER_HOST` / `BRANCH_MATRIX_ROOT`
+in the shell that starts it.
 
-### A nicer URL
+### A nicer URL (macOS)
 
 ```sh
 sudo ./scripts/hostname.sh install       # http://gbm.local:4321
@@ -85,7 +101,7 @@ repo itself — correct them if a guess is off.
 Browsing is confined to a single root, `$HOME` by default. Change it with `BRANCH_MATRIX_ROOT`:
 
 ```sh
-BRANCH_MATRIX_ROOT=/Users/handiani/projects npm run dev
+BRANCH_MATRIX_ROOT=~/projects npm run dev
 ```
 
 Every page is fixed to the viewport: the header with every control (search, author and tag
@@ -100,7 +116,7 @@ Repos can sit in one **group** (a section on the overview) and carry any number 
 Tag filter shows only repos that have every selected tag; edit both from a repo's Edit dialog or
 from Manage repos.
 
-## Running it in the background
+## Running it in the background (macOS)
 
 ```sh
 npm run build
@@ -139,6 +155,23 @@ sudo ./scripts/hostname.sh uninstall
 sudo ./scripts/hostname.sh install     # http://gbm.local:4321
 ```
 
+## Other platforms
+
+The app, `npm run fetch-helper` and Docker run anywhere Node 22 and git do. Only the convenience
+scripts are macOS-only and refuse to run elsewhere:
+
+| Script                    | Uses                            | Elsewhere                                                                              |
+| ------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| `scripts/service.sh`      | launchd LaunchAgent, pf         | `npm run docker:up` (`restart: unless-stopped`), or a systemd unit running `npm start` |
+| `scripts/fetch-helper.sh` | launchd LaunchAgent             | a systemd user unit / Task Scheduler running `npm run fetch-helper`                    |
+| `scripts/hostname.sh`     | `/etc/hosts`, pf, `dscacheutil` | add `127.0.0.1 gbm.test` to your hosts file by hand                                    |
+
+`npm run db:init` needs the Postgres client tools (`createdb`, `psql`) on your PATH; with Postgres
+in Docker, pipe `db/schema.sql` into `psql` inside that container instead.
+
+Dates render in `NEXT_PUBLIC_TIME_ZONE` (default UTC) on the server and switch to the browser's
+own zone after hydration — set it to yours to avoid the brief jump.
+
 ## When is a ticket "done"?
 
 Per repo, via `done_envs` (default `release, main`). A ticket is done once it has landed in **all**
@@ -173,7 +206,7 @@ dimmed — they still show progress, they just do not gate completion.
 | `app/actions.ts`           | server actions: add/edit/archive/reorder repos, notes, browse, scan, fetch     |
 | `hooks/use-scroll-memory`  | puts a list back where it was on Back, since the page itself never scrolls     |
 | `hooks/use-back-to`        | Back goes back in history when we came from inside the app, else to a fallback |
-| `scripts/fetch-helper.mjs` | the one process that runs `git fetch`, on the Mac, loopback only               |
+| `scripts/fetch-helper.mjs` | the one process that runs `git fetch`, on the host, loopback only              |
 | `db/schema.sql`            | `repo` + `branch_note` tables, with idempotent migrations                      |
 
 ### Why it is built this way

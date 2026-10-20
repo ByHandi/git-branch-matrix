@@ -8,7 +8,7 @@
  * hooks/use-time-zone.ts). Override the fallback at build time with
  * NEXT_PUBLIC_TIME_ZONE (an IANA name).
  */
-export const FALLBACK_TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || "Asia/Jakarta";
+export const FALLBACK_TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || "UTC";
 
 type Formats = { date: Intl.DateTimeFormat; dateTime: Intl.DateTimeFormat; label: string };
 const cache = new Map<string, Formats>();

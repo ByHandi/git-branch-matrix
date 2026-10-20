@@ -20,7 +20,7 @@ docs for the 15.x line instead.
 npm run dev          # http://localhost:4321 (needs Postgres, see README)
 npm run lint         # must be 0 errors
 npm run typecheck
-npm run docker:up    # rebuild the OrbStack container — it serves a baked build, not your source
+npm run docker:up    # rebuild the container — it serves a baked build, not your source
 ```
 
 There are no tests. The pre-commit hook (Husky + lint-staged) runs Prettier + `eslint --fix` on

@@ -7,6 +7,11 @@
 #   ./scripts/hostname.sh status
 set -euo pipefail
 
+if [ "$(uname -s)" != "Darwin" ]; then
+  echo "$(basename "$0") is macOS-only (pf, dscacheutil). See README → Other platforms." >&2
+  exit 1
+fi
+
 HOST="${BRANCH_MATRIX_HOST:-gbm.local}"
 PORT="${PORT:-4321}"
 MARK="# branch-matrix"

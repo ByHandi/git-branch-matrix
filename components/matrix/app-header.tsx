@@ -80,7 +80,7 @@ function AppHeader() {
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([value, count]) => ({ value, count }));
   }, [models, tags]);
-  // Fetch the repos on screen through the helper on the Mac, then re-read them.
+  // Fetch the repos on screen through the helper on the host, then re-read them.
   // Without the helper it still re-reads — the data is just as old as the last fetch.
   const refresh = () =>
     startRefresh(async () => {

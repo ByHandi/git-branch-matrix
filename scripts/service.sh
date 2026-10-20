@@ -8,6 +8,11 @@
 #   ./scripts/service.sh logs
 set -euo pipefail
 
+if [ "$(uname -s)" != "Darwin" ]; then
+  echo "$(basename "$0") is macOS-only (launchd, pf). See README → Other platforms." >&2
+  exit 1
+fi
+
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LABEL="com.gitbranchmatrix.app"
 PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"

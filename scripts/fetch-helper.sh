@@ -8,6 +8,11 @@
 #   ./scripts/fetch-helper.sh uninstall
 set -euo pipefail
 
+if [ "$(uname -s)" != "Darwin" ]; then
+  echo "$(basename "$0") is macOS-only (launchd). See README → Other platforms." >&2
+  exit 1
+fi
+
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LABEL="com.gitbranchmatrix.fetch"
 PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"

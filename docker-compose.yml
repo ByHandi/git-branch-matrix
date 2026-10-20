@@ -1,25 +1,34 @@
 name: git-branch-matrix
 
+# Run with `npm run docker:up`, which passes `--env-file .env.docker`: that one file both fills
+# the ${…} below and becomes the container's environment. Copy it from .env.example.
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        # inlined into the client bundle at build time, so it has to be a build arg
+        NEXT_PUBLIC_TIME_ZONE: ${NEXT_PUBLIC_TIME_ZONE:-UTC}
     image: git-branch-matrix
     restart: unless-stopped
     # BRANCH_MATRIX_DB lives here (gitignored). Inside the container `localhost`
     # is the container itself — reach the host's Postgres via host.docker.internal.
     env_file: .env.docker
     environment:
-      BRANCH_MATRIX_ROOT: ${HOME}/projects
-      # git fetch runs on the Mac, not in here: scripts/fetch-helper.sh install
-      FETCH_HELPER_URL: http://host.docker.internal:4329
-      # server clock and logs in local time; pages show dates in the viewer's own zone (lib/time.ts)
-      TZ: Asia/Jakarta
+      BRANCH_MATRIX_ROOT: ${BRANCH_MATRIX_ROOT:-${HOME}/projects}
+      # git fetch runs on the host, not in here: scripts/fetch-helper.sh install
+      FETCH_HELPER_URL: ${FETCH_HELPER_URL:-http://host.docker.internal:4329}
+    # Docker Desktop and OrbStack provide host.docker.internal on their own; plain Docker Engine
+    # on Linux only does with this line. Harmless where it already exists.
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       # Same path as on the host, so repo paths stored in Postgres stay valid
       # for both a native `npm run dev` and the container. Git is read-only anyway.
-      - ${HOME}/projects:${HOME}/projects:ro
+      - ${BRANCH_MATRIX_ROOT:-${HOME}/projects}:${BRANCH_MATRIX_ROOT:-${HOME}/projects}:ro
     ports:
       # loopback only: this dashboard has no auth, keep it off the LAN
-      - "127.0.0.1:4321:4321"
+      - "127.0.0.1:${PORT:-4321}:4321"
     labels:
+      # OrbStack only (http://gbm.orb.local); every other runtime ignores the label
       dev.orbstack.domains: gbm.orb.local

@@ -7,6 +7,9 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# .env* never reaches the build (.dockerignore), so the one NEXT_PUBLIC_ value comes in as an arg
+ARG NEXT_PUBLIC_TIME_ZONE=UTC
+ENV NEXT_PUBLIC_TIME_ZONE=$NEXT_PUBLIC_TIME_ZONE
 RUN NEXT_STANDALONE=1 npm run build
 
 FROM node:22-alpine
