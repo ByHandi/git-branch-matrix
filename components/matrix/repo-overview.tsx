@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import useScrollMemory from "@/hooks/use-scroll-memory";
 import type { RepoView } from "@/lib/overview";
 import { cn } from "@/lib/utils";
 
@@ -99,10 +100,11 @@ export function RepoOverview({
   }, [models, query, pendingOnly, authors, tags]);
 
   const loading = total - models.length;
+  const scrollRef = useScrollMemory();
 
   return (
-    <div className="flex flex-col gap-3 p-6">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <p>
           {total} repo{total === 1 ? "" : "s"} · {open} open{filtering && " matching the filter"}
           {loading > 0 && ` · reading ${loading} from git…`}
@@ -115,9 +117,9 @@ export function RepoOverview({
         </Link>
       </div>
 
-      <section className="rounded-xl border bg-card">
-        <Table>
-          <TableHeader>
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card">
+        <Table containerRef={scrollRef} containerClassName="min-h-0 overflow-auto">
+          <TableHeader sticky>
             <TableRow>
               <TableHead className="pl-4">Repo</TableHead>
               <TableHead className="text-right">Open</TableHead>
@@ -133,7 +135,7 @@ export function RepoOverview({
         </Table>
 
         {hidden > 0 && (
-          <footer className="flex flex-wrap items-center gap-2 border-t px-4 py-2 text-xs text-muted-foreground">
+          <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t px-4 py-2 text-xs text-muted-foreground">
             <span>
               {hidden} repo{hidden === 1 ? "" : "s"} hidden — nothing matches the current filter.
             </span>

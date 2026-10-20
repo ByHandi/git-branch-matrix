@@ -38,13 +38,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
     >
-      <body>
+      {/* fixed to the viewport: pages never scroll, only the list inside them does */}
+      <body className="flex h-dvh flex-col overflow-hidden">
         <Providers>
           <TooltipProvider>
             <AppNavigationTracker />
             <MatrixProvider>
               <AppHeader />
-              <main>{children}</main>
+              <main className="flex min-h-0 flex-1 flex-col">{children}</main>
             </MatrixProvider>
           </TooltipProvider>
         </Providers>

@@ -14,6 +14,7 @@ import { TagInput } from "./tags";
 import { patchRepoAction, reorderReposAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import useScrollMemory from "@/hooks/use-scroll-memory";
 import type { RepoSettings } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +90,7 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
   const [armed, setArmed] = useState<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
   const [, startTransition] = useTransition();
+  const scrollRef = useScrollMemory();
 
   // the server is the source of truth after every save
   useEffect(() => setItems(repos), [repos]);
@@ -121,10 +123,10 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
       <BackLink />
 
-      <div>
+      <div className="shrink-0">
         <h2 className="text-sm font-semibold">Manage repos</h2>
         <p className="text-xs text-muted-foreground">
           Drag the handle (or focus it and press ↑ ↓) to reorder within a section. Typing a group
@@ -139,102 +141,105 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
       </datalist>
 
       {items.length === 0 && (
-        <p className="rounded-xl border bg-card px-4 py-16 text-center text-sm text-muted-foreground">
+        <p className="shrink-0 rounded-xl border bg-card px-4 py-16 text-center text-sm text-muted-foreground">
           No repos tracked yet.
         </p>
       )}
 
-      {sections.map((section) => (
-        <section key={section.key} className="rounded-xl border bg-card">
-          <header className="border-b px-4 py-2 text-xs">
-            <span className="font-semibold">{section.label}</span>
-            <span className="text-muted-foreground"> · {section.items.length}</span>
-          </header>
+      {/* one scrolling list for every section; each heading sticks while its rows pass under it */}
+      <div ref={scrollRef} className="-mx-1 flex min-h-0 flex-col gap-3 overflow-y-auto px-1">
+        {sections.map((section) => (
+          <section key={section.key} className="rounded-xl border bg-card">
+            <header className="sticky top-0 z-10 rounded-t-xl border-b bg-card px-4 py-2 text-xs">
+              <span className="font-semibold">{section.label}</span>
+              <span className="text-muted-foreground"> · {section.items.length}</span>
+            </header>
 
-          <ul>
-            {section.items.map((repo) => (
-              <li
-                key={repo.id}
-                draggable={armed === repo.id}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  setDragging(repo.id);
-                }}
-                onDragOver={(e) => {
-                  if (dragging === null || !section.items.some((r) => r.id === dragging)) return;
-                  e.preventDefault();
-                  const box = e.currentTarget.getBoundingClientRect();
-                  move(dragging, repo.id, e.clientY > box.top + box.height / 2);
-                }}
-                onDrop={(e) => e.preventDefault()}
-                onDragEnd={() => {
-                  setDragging(null);
-                  setArmed(null);
-                  persist(items);
-                }}
-                className={cn(
-                  "flex flex-wrap items-center gap-3 border-b px-2 py-2 last:border-b-0",
-                  dragging === repo.id && "opacity-40",
-                  repo.archived && "text-muted-foreground",
-                )}
-              >
-                <button
-                  type="button"
-                  aria-label={`Reorder ${repo.name}`}
-                  disabled={repo.archived}
-                  onPointerDown={() => setArmed(repo.id)}
-                  onPointerUp={() => setArmed(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                      e.preventDefault();
-                      nudge(section, repo.id, e.key === "ArrowUp" ? -1 : 1);
-                    }
+            <ul>
+              {section.items.map((repo) => (
+                <li
+                  key={repo.id}
+                  draggable={armed === repo.id}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    setDragging(repo.id);
                   }}
-                  className="cursor-grab rounded p-1 text-muted-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:invisible"
+                  onDragOver={(e) => {
+                    if (dragging === null || !section.items.some((r) => r.id === dragging)) return;
+                    e.preventDefault();
+                    const box = e.currentTarget.getBoundingClientRect();
+                    move(dragging, repo.id, e.clientY > box.top + box.height / 2);
+                  }}
+                  onDrop={(e) => e.preventDefault()}
+                  onDragEnd={() => {
+                    setDragging(null);
+                    setArmed(null);
+                    persist(items);
+                  }}
+                  className={cn(
+                    "flex flex-wrap items-center gap-3 border-b px-2 py-2 last:border-b-0",
+                    dragging === repo.id && "opacity-40",
+                    repo.archived && "text-muted-foreground",
+                  )}
                 >
-                  <GripVerticalIcon className="size-4" />
-                </button>
+                  <button
+                    type="button"
+                    aria-label={`Reorder ${repo.name}`}
+                    disabled={repo.archived}
+                    onPointerDown={() => setArmed(repo.id)}
+                    onPointerUp={() => setArmed(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                        nudge(section, repo.id, e.key === "ArrowUp" ? -1 : 1);
+                      }
+                    }}
+                    className="cursor-grab rounded p-1 text-muted-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:invisible"
+                  >
+                    <GripVerticalIcon className="size-4" />
+                  </button>
 
-                <div className="min-w-0 flex-1">
-                  <Link href={`/repo/${repo.id}`} className="text-sm font-medium hover:underline">
-                    {repo.name}
-                  </Link>
-                  <div className="truncate font-mono text-xs text-muted-foreground">
-                    {repo.path}
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/repo/${repo.id}`} className="text-sm font-medium hover:underline">
+                      {repo.name}
+                    </Link>
+                    <div className="truncate font-mono text-xs text-muted-foreground">
+                      {repo.path}
+                    </div>
                   </div>
-                </div>
 
-                <GroupField
-                  repo={repo}
-                  onMove={(group) =>
-                    setItems((prev) => prev.map((r) => (r.id === repo.id ? { ...r, group } : r)))
-                  }
-                />
+                  <GroupField
+                    repo={repo}
+                    onMove={(group) =>
+                      setItems((prev) => prev.map((r) => (r.id === repo.id ? { ...r, group } : r)))
+                    }
+                  />
 
-                <TagInput
-                  aria-label={`Tags of ${repo.name}`}
-                  value={repo.tags}
-                  onChange={(tags) => saveTags(repo, tags)}
-                  suggestions={allTags}
-                  placeholder="tags"
-                  className="w-56"
-                />
+                  <TagInput
+                    aria-label={`Tags of ${repo.name}`}
+                    value={repo.tags}
+                    onChange={(tags) => saveTags(repo, tags)}
+                    suggestions={allTags}
+                    placeholder="tags"
+                    className="w-56"
+                  />
 
-                <div className="flex items-center gap-1">
-                  {!repo.archived && <PinToggle settings={repo} />}
-                  <EditRepoDialog settings={repo} groups={groups} tags={allTags}>
-                    <Button size="sm" variant="ghost">
-                      <PencilIcon className="size-4" />
-                      Edit
-                    </Button>
-                  </EditRepoDialog>
-                  <ArchiveToggle settings={repo} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+                  <div className="flex items-center gap-1">
+                    {!repo.archived && <PinToggle settings={repo} />}
+                    <EditRepoDialog settings={repo} groups={groups} tags={allTags}>
+                      <Button size="sm" variant="ghost">
+                        <PencilIcon className="size-4" />
+                        Edit
+                      </Button>
+                    </EditRepoDialog>
+                    <ArchiveToggle settings={repo} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

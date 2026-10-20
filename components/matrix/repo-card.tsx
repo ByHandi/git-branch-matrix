@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, PencilIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Ago from "./ago";
 import EditRepoDialog from "./edit-repo-dialog";
@@ -39,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import useScrollMemory from "@/hooks/use-scroll-memory";
 import { useTimeZone } from "@/hooks/use-time-zone";
 import type { MergeCell, Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
@@ -129,6 +130,15 @@ function RepoCard({
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
+  const remember = useScrollMemory();
+  const scroller = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      scroller.current = el;
+      return remember(el);
+    },
+    [remember],
+  );
 
   const filtered = useMemo(
     () => filterTickets(model, query, pendingOnly, authors),
@@ -143,6 +153,12 @@ function RepoCard({
   const start = (current - 1) * pageSize;
   const visible = sorted.slice(start, start + pageSize);
 
+  // the list scrolls on its own now, so a new page would otherwise open mid-way down
+  const goTo = (next: number) => {
+    setPage(next);
+    scroller.current?.scrollTo({ top: 0 });
+  };
+
   const toggleSort = (key: SortKey) =>
     setSort((prev) =>
       prev.key === key
@@ -153,8 +169,8 @@ function RepoCard({
   const unfinished = model.tickets.filter((t) => !t.done).length;
 
   return (
-    <section className="rounded-xl border bg-card">
-      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card">
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
         <h2 className="text-sm font-semibold">{model.repoName}</h2>
         <span className="font-mono text-xs text-muted-foreground">{model.repo}</span>
         {model.settings.tags.map((tag) => (
@@ -199,177 +215,173 @@ function RepoCard({
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">nothing matches</p>
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortHead label="Ticket" sortKey="ticket" sort={sort} onSort={toggleSort} />
-                  <TableHead>Branch</TableHead>
-                  <SortHead label="Author" sortKey="author" sort={sort} onSort={toggleSort} />
-                  {model.envs.map((env, i) => {
-                    const counts = model.doneEnvs.includes(env);
-                    return (
-                      <TableHead
-                        key={env}
-                        className={cn("text-center", !counts && "font-normal opacity-70")}
-                        title={
-                          counts
-                            ? "counts toward done"
-                            : "shown for progress, but does not decide done"
-                        }
-                      >
-                        {i === 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleSort("reach")}
-                            className={cn(
-                              "hover:text-foreground",
-                              sort.key === "reach" && "text-foreground",
-                            )}
-                            title="Sort by how far the ticket has travelled"
-                          >
-                            {env}
-                          </button>
-                        ) : (
-                          env
-                        )}
-                      </TableHead>
-                    );
-                  })}
-                  <SortHead
-                    label="Last commit"
-                    title="Newest commit on the ticket's branches — not when it was merged; hover a ✓ for that"
-                    sortKey="date"
-                    sort={sort}
-                    onSort={toggleSort}
-                  />
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {visible.map((ticket) => (
-                  <TableRow
-                    key={ticket.id}
-                    className="cursor-pointer"
-                    onClick={() => onSelect(model, ticket)}
-                  >
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "font-mono text-xs",
-                          ticket.done || ticket.untracked
-                            ? "text-muted-foreground"
-                            : "font-semibold",
-                        )}
-                      >
-                        {ticketLabel(ticket.id)}
-                      </span>
-                      {ticket.untracked && (
-                        <Badge variant="outline" className="ml-2">
-                          no ticket
-                        </Badge>
-                      )}
-                      <StuckBadge model={model} ticket={ticket} />
-                      {ticket.combined && (
-                        <Badge variant="secondary" className="ml-2" title="combined branch">
-                          ⧉ combined
-                        </Badge>
-                      )}
-                    </TableCell>
-
-                    <TableCell className="space-y-0.5">
-                      {ticket.branches.map((name) => {
-                        const branch = model.branches.find((b) => b.name === name);
-                        return (
-                          <div
-                            key={name}
-                            title={branch?.live ? undefined : "branch has been deleted"}
-                            className={cn(
-                              "font-mono text-xs text-muted-foreground",
-                              !branch?.live && "line-through opacity-70",
-                            )}
-                          >
-                            {name}
-                          </div>
-                        );
-                      })}
-                    </TableCell>
-
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {ticket.authors.length ? (
-                        ticket.authors.map((author, i) => (
-                          <span key={author}>
-                            {i > 0 && ", "}
-                            <button
-                              type="button"
-                              title={`Filter to ${author} only`}
-                              className="hover:text-foreground hover:underline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onAuthorClick(author);
-                              }}
-                            >
-                              {author}
-                            </button>
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground/40">—</span>
-                      )}
-                    </TableCell>
-
-                    {model.envs.map((env) => {
-                      const cell = ticket.envs[env];
-                      const pr = cell ? null : prTarget(model, ticket, env);
-                      return (
-                        <TableCell key={env} className="text-center">
-                          {cell ? (
-                            <span
-                              className="font-medium text-emerald-600 dark:text-emerald-400"
-                              title={mergedTitle(env, cell, timeZone)}
-                            >
-                              ✓
-                              {cell.pr ? (
-                                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                  #{cell.pr}
-                                </span>
-                              ) : null}
-                            </span>
-                          ) : pr ? (
-                            <a
-                              href={pr.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              title={`Open a pull request: ${pr.head} → ${env}`}
-                              className="group/pr inline-flex w-12 justify-center"
-                            >
-                              <span className="text-muted-foreground/40 group-hover/pr:hidden">
-                                ·
-                              </span>
-                              <span className="hidden text-xs font-medium text-sky-600 group-hover/pr:inline dark:text-sky-400">
-                                + PR
-                              </span>
-                            </a>
-                          ) : (
-                            <span className="inline-flex w-12 justify-center text-muted-foreground/40">
-                              ·
-                            </span>
+          <Table containerRef={scrollRef} containerClassName="min-h-0 overflow-auto">
+            <TableHeader sticky>
+              <TableRow>
+                <SortHead label="Ticket" sortKey="ticket" sort={sort} onSort={toggleSort} />
+                <TableHead>Branch</TableHead>
+                <SortHead label="Author" sortKey="author" sort={sort} onSort={toggleSort} />
+                {model.envs.map((env, i) => {
+                  const counts = model.doneEnvs.includes(env);
+                  return (
+                    <TableHead
+                      key={env}
+                      className={cn("text-center", !counts && "font-normal opacity-70")}
+                      title={
+                        counts
+                          ? "counts toward done"
+                          : "shown for progress, but does not decide done"
+                      }
+                    >
+                      {i === 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSort("reach")}
+                          className={cn(
+                            "hover:text-foreground",
+                            sort.key === "reach" && "text-foreground",
                           )}
-                        </TableCell>
+                          title="Sort by how far the ticket has travelled"
+                        >
+                          {env}
+                        </button>
+                      ) : (
+                        env
+                      )}
+                    </TableHead>
+                  );
+                })}
+                <SortHead
+                  label="Last commit"
+                  title="Newest commit on the ticket's branches — not when it was merged; hover a ✓ for that"
+                  sortKey="date"
+                  sort={sort}
+                  onSort={toggleSort}
+                />
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {visible.map((ticket) => (
+                <TableRow
+                  key={ticket.id}
+                  className="cursor-pointer"
+                  onClick={() => onSelect(model, ticket)}
+                >
+                  <TableCell>
+                    <span
+                      className={cn(
+                        "font-mono text-xs",
+                        ticket.done || ticket.untracked ? "text-muted-foreground" : "font-semibold",
+                      )}
+                    >
+                      {ticketLabel(ticket.id)}
+                    </span>
+                    {ticket.untracked && (
+                      <Badge variant="outline" className="ml-2">
+                        no ticket
+                      </Badge>
+                    )}
+                    <StuckBadge model={model} ticket={ticket} />
+                    {ticket.combined && (
+                      <Badge variant="secondary" className="ml-2" title="combined branch">
+                        ⧉ combined
+                      </Badge>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="space-y-0.5">
+                    {ticket.branches.map((name) => {
+                      const branch = model.branches.find((b) => b.name === name);
+                      return (
+                        <div
+                          key={name}
+                          title={branch?.live ? undefined : "branch has been deleted"}
+                          className={cn(
+                            "font-mono text-xs text-muted-foreground",
+                            !branch?.live && "line-through opacity-70",
+                          )}
+                        >
+                          {name}
+                        </div>
                       );
                     })}
+                  </TableCell>
 
-                    <TableCell className="text-xs text-muted-foreground">
-                      <Ago iso={ticket.date} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    {ticket.authors.length ? (
+                      ticket.authors.map((author, i) => (
+                        <span key={author}>
+                          {i > 0 && ", "}
+                          <button
+                            type="button"
+                            title={`Filter to ${author} only`}
+                            className="hover:text-foreground hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAuthorClick(author);
+                            }}
+                          >
+                            {author}
+                          </button>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground/40">—</span>
+                    )}
+                  </TableCell>
 
-          <footer className="flex flex-wrap items-center gap-3 border-t px-4 py-2 text-xs text-muted-foreground">
+                  {model.envs.map((env) => {
+                    const cell = ticket.envs[env];
+                    const pr = cell ? null : prTarget(model, ticket, env);
+                    return (
+                      <TableCell key={env} className="text-center">
+                        {cell ? (
+                          <span
+                            className="font-medium text-emerald-600 dark:text-emerald-400"
+                            title={mergedTitle(env, cell, timeZone)}
+                          >
+                            ✓
+                            {cell.pr ? (
+                              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                #{cell.pr}
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : pr ? (
+                          <a
+                            href={pr.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title={`Open a pull request: ${pr.head} → ${env}`}
+                            className="group/pr inline-flex w-12 justify-center"
+                          >
+                            <span className="text-muted-foreground/40 group-hover/pr:hidden">
+                              ·
+                            </span>
+                            <span className="hidden text-xs font-medium text-sky-600 group-hover/pr:inline dark:text-sky-400">
+                              + PR
+                            </span>
+                          </a>
+                        ) : (
+                          <span className="inline-flex w-12 justify-center text-muted-foreground/40">
+                            ·
+                          </span>
+                        )}
+                      </TableCell>
+                    );
+                  })}
+
+                  <TableCell className="text-xs text-muted-foreground">
+                    <Ago iso={ticket.date} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          <footer className="flex shrink-0 flex-wrap items-center gap-3 border-t px-4 py-2 text-xs text-muted-foreground">
             <span>
               {start + 1}–{Math.min(start + pageSize, sorted.length)} of {sorted.length}
               {sorted.length !== model.tickets.length && ` (filtered from ${model.tickets.length})`}
@@ -396,7 +408,7 @@ function RepoCard({
                 size="sm"
                 variant="ghost"
                 disabled={current <= 1}
-                onClick={() => setPage(current - 1)}
+                onClick={() => goTo(current - 1)}
               >
                 ‹ Prev
               </Button>
@@ -407,7 +419,7 @@ function RepoCard({
                 size="sm"
                 variant="ghost"
                 disabled={current >= pageCount}
-                onClick={() => setPage(current + 1)}
+                onClick={() => goTo(current + 1)}
               >
                 Next ›
               </Button>

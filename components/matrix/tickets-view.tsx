@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import useScrollMemory from "@/hooks/use-scroll-memory";
 import type { Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
 import { hasTags } from "@/lib/tags";
@@ -87,6 +88,7 @@ function Status({ cross }: { cross: CrossTicket }) {
 function TicketsView({ models }: { models: RepoView[] }) {
   useRegisterRepos(models);
   const { query, focusTicket, pendingOnly, authors, tags, filtering, clearFilters } = useMatrix();
+  const scrollRef = useScrollMemory();
   const [multiOnly, setMultiOnly] = useState(false);
   const [partialOnly, setPartialOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
@@ -128,8 +130,8 @@ function TicketsView({ models }: { models: RepoView[] }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-6">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-6">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
         <p>
           {listed.length} ticket{listed.length === 1 ? "" : "s"} across {inScope.length} repo
           {inScope.length === 1 ? "" : "s"}
@@ -160,7 +162,7 @@ function TicketsView({ models }: { models: RepoView[] }) {
         </Button>
       </div>
 
-      <section className="rounded-xl border bg-card">
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card">
         {shown.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-sm text-muted-foreground">
             nothing matches
@@ -171,8 +173,8 @@ function TicketsView({ models }: { models: RepoView[] }) {
             )}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
+          <Table containerRef={scrollRef} containerClassName="min-h-0 overflow-auto">
+            <TableHeader sticky>
               <TableRow>
                 <TableHead className="pl-4">Ticket</TableHead>
                 <TableHead>Status</TableHead>
@@ -229,7 +231,7 @@ function TicketsView({ models }: { models: RepoView[] }) {
         )}
 
         {listed.length > limit && (
-          <footer className="flex justify-center border-t px-4 py-2">
+          <footer className="flex shrink-0 justify-center border-t px-4 py-2">
             <Button size="sm" variant="ghost" onClick={() => setLimit((n) => n + PAGE)}>
               Show {Math.min(PAGE, listed.length - limit)} more of {listed.length - limit}
             </Button>

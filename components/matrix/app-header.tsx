@@ -102,7 +102,7 @@ function AppHeader() {
   const showTags = !pathname.startsWith("/repo/") && !pathname.startsWith("/manage");
 
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/95 px-6 py-3 backdrop-blur supports-backdrop-filter:bg-background/75">
+    <header className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-background px-6 py-3">
       <Link href="/" className="flex items-center gap-3">
         <Logo className="size-7 shrink-0" />
         <div>
