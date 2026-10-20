@@ -35,3 +35,7 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# per-developer Claude Code config (dev-server preview port, local permissions)
+.claude/launch.json
+.claude/settings.local.json

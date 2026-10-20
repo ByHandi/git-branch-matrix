@@ -90,7 +90,7 @@ working.
 Passing `80` additionally loads a pf anchor that redirects port 80 to the app, so the app itself
 never needs to run as root — but **pf rules do not survive a reboot**, so re-run it after
 restarting, or stick with the port suffix. `status` tells the two apart: an anchor that is
-installed but no longer loaded is reported as `redirect MATI`, which is the usual reason
+installed but no longer loaded is reported as `redirect DOWN`, which is the usual reason
 `http://gbm.local` stops answering while `http://gbm.local:4321` still works.
 
 Note that `.local` is reserved for mDNS/Bonjour (RFC 6762). An `/etc/hosts` entry does win on

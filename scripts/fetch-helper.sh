@@ -22,8 +22,8 @@ ROOT="${BRANCH_MATRIX_ROOT:-$HOME/projects}"
 
 install_helper() {
   local node git_bin
-  node="$(command -v node)" || { echo "node nggak ketemu di PATH" >&2; exit 1; }
-  git_bin="$(command -v git)" || { echo "git nggak ketemu di PATH" >&2; exit 1; }
+  node="$(command -v node)" || { echo "node not found on PATH" >&2; exit 1; }
+  git_bin="$(command -v git)" || { echo "git not found on PATH" >&2; exit 1; }
 
   mkdir -p "$HOME/Library/LaunchAgents" "$(dirname "$LOG")"
   cat > "$PLIST" <<EOF
@@ -55,7 +55,7 @@ EOF
   plutil -lint "$PLIST" >/dev/null
   launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
   launchctl bootstrap "gui/$(id -u)" "$PLIST"
-  echo "• fetch helper terpasang: http://127.0.0.1:${PORT} (repo di bawah ${ROOT})"
+  echo "• fetch helper installed: http://127.0.0.1:${PORT} (repos under ${ROOT})"
   echo "• log: ${LOG}"
 }
 
@@ -64,20 +64,20 @@ case "${1:-status}" in
   uninstall)
     launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
     rm -f "$PLIST"
-    echo "• fetch helper dicabut"
+    echo "• fetch helper removed"
     ;;
   logs) tail -f "$LOG" ;;
   status)
     if launchctl print "gui/$(id -u)/${LABEL}" >/dev/null 2>&1; then
-      echo "helper : terdaftar auto-start"
+      echo "helper : starts at login"
     else
-      echo "helper : belum dipasang (./scripts/fetch-helper.sh install)"
+      echo "helper : not installed (./scripts/fetch-helper.sh install)"
     fi
     if curl -fsS -m 2 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
-      echo "server : jalan di 127.0.0.1:${PORT}"
+      echo "server : running on 127.0.0.1:${PORT}"
     else
-      echo "server : mati"
+      echo "server : down"
     fi
     ;;
-  *) echo "pakai: $0 {install|uninstall|status|logs}" >&2; exit 1 ;;
+  *) echo "usage: $0 {install|uninstall|status|logs}" >&2; exit 1 ;;
 esac
