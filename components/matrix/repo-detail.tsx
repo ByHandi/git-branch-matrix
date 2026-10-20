@@ -10,17 +10,16 @@ import TicketSheet from "./ticket-sheet";
 import type { Ticket } from "@/lib/git";
 import type { RepoView } from "@/lib/overview";
 
-function RepoDetail({
-  model,
-  groups,
-  tags,
-}: {
+export interface RepoDetailProps {
   model: RepoView;
   groups: string[];
   tags: string[];
-}) {
+}
+
+function RepoDetail({ model, groups, tags }: RepoDetailProps) {
   useRegisterRepo(model);
   const { query, pendingOnly, authors, setAuthors } = useMatrix();
+
   // The ticket outlives `open` so the sheet keeps its content while it animates shut.
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Ticket | null>(null);

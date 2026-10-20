@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 
-import { GripVerticalIcon, PencilIcon } from "lucide-react";
+import { GripVerticalIcon, PencilLine } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
+
+import Tooltip from "../shared/tooltip";
 
 import BackLink from "./back-link";
 import EditRepoDialog from "./edit-repo-dialog";
@@ -47,16 +49,16 @@ function moved(list: RepoSettings[], id: number, targetId: number, after: boolea
   return [...rest.slice(0, at), moving, ...rest.slice(at)];
 }
 
-function GroupField({
-  repo,
-  onMove,
-}: {
+export interface GroupFieldProps {
   repo: RepoSettings;
   /** move the row to its new section right away, before the save round-trips */
   onMove: (group: string | null) => void;
-}) {
+}
+
+function GroupField({ repo, onMove }: GroupFieldProps) {
   const [value, setValue] = useState(repo.group ?? "");
   const [, startTransition] = useTransition();
+
   useEffect(() => setValue(repo.group ?? ""), [repo.group]);
 
   const commit = () => {
@@ -177,7 +179,7 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
                     persist(items);
                   }}
                   className={cn(
-                    "flex flex-wrap items-center gap-3 border-b px-2 py-2 last:border-b-0",
+                    "flex flex-wrap items-center gap-3 border-b px-2 py-2 last:border-b-0 hover:bg-accent/20",
                     dragging === repo.id && "opacity-40",
                     repo.archived && "text-muted-foreground",
                   )}
@@ -226,12 +228,15 @@ function ManageRepos({ repos }: { repos: RepoSettings[] }) {
 
                   <div className="flex items-center gap-1">
                     {!repo.archived && <PinToggle settings={repo} />}
+
                     <EditRepoDialog settings={repo} groups={groups} tags={allTags}>
-                      <Button size="sm" variant="ghost">
-                        <PencilIcon className="size-4" />
-                        Edit
-                      </Button>
+                      <Tooltip description={`Edit ${repo.name}`}>
+                        <Button size="icon-sm" variant="ghost">
+                          <PencilLine className="size-4" />
+                        </Button>
+                      </Tooltip>
                     </EditRepoDialog>
+
                     <ArchiveToggle settings={repo} />
                   </div>
                 </li>

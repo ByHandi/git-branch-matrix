@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLinkIcon } from "lucide-react";
+import { Check, ExternalLinkIcon, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -93,9 +93,13 @@ function BranchEditor({ model, branch }: { model: RepoView; branch: Branch }) {
             <li key={env} className="flex items-center gap-2">
               <span className="w-24 text-muted-foreground">{env}</span>
               {cell ? (
-                <span className="font-medium text-emerald-600 dark:text-emerald-400">✓ merged</span>
+                <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                  <Check className="size-4" /> <span>merged</span>
+                </span>
               ) : (
-                <span className="text-muted-foreground">✗ not yet</span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <X className="size-4" /> <span>not yet</span>
+                </span>
               )}
               {cell?.pr && <span className="text-muted-foreground">PR #{cell.pr}</span>}
               {cell?.date && (

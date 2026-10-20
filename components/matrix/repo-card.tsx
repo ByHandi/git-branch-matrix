@@ -1,7 +1,9 @@
 "use client";
 
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, PencilIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, Check, ChevronsUpDownIcon, PencilLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import Tooltip from "../shared/tooltip";
 
 import Ago from "./ago";
 import EditRepoDialog from "./edit-repo-dialog";
@@ -59,21 +61,16 @@ type Props = {
   tagSuggestions?: string[];
 };
 
-function SortHead({
-  label,
-  sortKey,
-  sort,
-  onSort,
-  className,
-  title,
-}: {
+export interface SortHeadProps {
   label: string;
   sortKey: SortKey;
   sort: Sort;
   onSort: (key: SortKey) => void;
   className?: string;
   title?: string;
-}) {
+}
+
+function SortHead({ label, sortKey, sort, onSort, className, title }: SortHeadProps) {
   const active = sort.key === sortKey;
   const Icon = !active ? ChevronsUpDownIcon : sort.dir === "asc" ? ArrowUpIcon : ArrowDownIcon;
 
@@ -115,16 +112,10 @@ function StuckBadge({ model, ticket }: { model: RepoView; ticket: Ticket }) {
   );
 }
 
-function RepoCard({
-  model,
-  query,
-  pendingOnly,
-  authors,
-  onSelect,
-  onAuthorClick,
-  groups,
-  tagSuggestions,
-}: Props) {
+function RepoCard(props: Props) {
+  const { model, query, pendingOnly, authors, onSelect, onAuthorClick, groups, tagSuggestions } =
+    props;
+
   const { navigate } = useMatrix();
   const timeZone = useTimeZone();
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
@@ -200,10 +191,11 @@ function RepoCard({
         <div className="ml-auto flex items-center gap-1">
           <PinToggle settings={model.settings} />
           <EditRepoDialog settings={model.settings} groups={groups} tags={tagSuggestions}>
-            <Button size="sm" variant="ghost">
-              <PencilIcon className="size-4" />
-              Edit
-            </Button>
+            <Tooltip description={`Edit ${model.repo}`}>
+              <Button size="icon-sm" variant="ghost">
+                <PencilLine className="size-4" />
+              </Button>
+            </Tooltip>
           </EditRepoDialog>
           <ArchiveToggle settings={model.settings} />
         </div>
@@ -338,12 +330,13 @@ function RepoCard({
                       <TableCell key={env} className="text-center">
                         {cell ? (
                           <span
-                            className="font-medium text-emerald-600 dark:text-emerald-400"
+                            className="flex items-center gap-1 font-medium"
                             title={mergedTitle(env, cell, timeZone)}
                           >
-                            ✓
+                            <Check className="size-4 text-emerald-600 dark:text-emerald-400" />
+
                             {cell.pr ? (
-                              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                              <span className="text-xs font-normal text-muted-foreground">
                                 #{cell.pr}
                               </span>
                             ) : null}

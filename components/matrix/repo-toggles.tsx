@@ -4,6 +4,8 @@ import { ArchiveIcon, ArchiveRestoreIcon, StarIcon } from "lucide-react";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
+import Tooltip from "../shared/tooltip";
+
 import { patchRepoAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import type { RepoSettings } from "@/lib/db";
@@ -55,9 +57,10 @@ export function ArchiveToggle({ settings }: { settings: RepoSettings }) {
     });
 
   return (
-    <Button size="sm" variant="ghost" onClick={toggle} isLoading={pending}>
-      <Icon className="size-4" />
-      {settings.archived ? "Unarchive" : "Archive"}
-    </Button>
+    <Tooltip description={settings.archived ? "Unarchive" : "Archive"}>
+      <Button size="icon-sm" variant="destructive" onClick={toggle} isLoading={pending}>
+        <Icon className="size-4" />
+      </Button>
+    </Tooltip>
   );
 }

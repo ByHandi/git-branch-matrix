@@ -12,7 +12,8 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "db:init": "createdb branch_matrix 2>/dev/null; psql -d branch_matrix -f db/schema.sql"
+    "db:init": "createdb branch_matrix 2>/dev/null; psql -d branch_matrix -f db/schema.sql",
+    "docker:up": "docker compose up -d --build"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
