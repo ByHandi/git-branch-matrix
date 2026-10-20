@@ -35,6 +35,12 @@ export function freshness(fetchedAt: string | null): Freshness {
 
 export const ticketLabel = (id: string) => id.replace("(no-ticket) ", "");
 
+/** The ticket's page in the issue tracker, or null — a branch with no ticket ID has none. */
+export function ticketHref(model: Pick<RepoView, "ticketUrl">, ticket: Ticket): string | null {
+  if (!model.ticketUrl || ticket.untracked) return null;
+  return model.ticketUrl.replaceAll("{ticket}", encodeURIComponent(ticket.id));
+}
+
 export type SortKey = "date" | "ticket" | "reach" | "author";
 export type SortDir = "asc" | "desc";
 export type Sort = { key: SortKey; dir: SortDir };

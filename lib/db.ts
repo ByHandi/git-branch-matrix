@@ -33,6 +33,7 @@ export type RepoRow = {
   group_name: string | null;
   pinned: boolean;
   tags: string[];
+  ticket_url: string | null;
   created_at: Date;
 };
 
@@ -45,6 +46,8 @@ export type RepoSettings = {
   doneEnvs: string[];
   remote: string;
   ticketPattern: string;
+  /** this repo's own issue-tracker link, null when it uses the default (see ticketUrlFor) */
+  ticketUrl: string | null;
   group: string | null;
   tags: string[];
   pinned: boolean;
@@ -59,11 +62,19 @@ export const toSettings = (row: RepoRow): RepoSettings => ({
   doneEnvs: row.done_envs,
   remote: row.remote,
   ticketPattern: row.ticket_pattern,
+  ticketUrl: row.ticket_url,
   group: row.group_name,
   tags: row.tags,
   pinned: row.pinned,
   archived: row.archived,
 });
+
+/**
+ * Where a repo's ticket IDs link to: its own URL, else the BRANCH_MATRIX_TICKET_URL default, else
+ * nowhere. Either way a template with `{ticket}` in it.
+ */
+export const ticketUrlFor = (row: RepoRow): string | null =>
+  row.ticket_url || process.env.BRANCH_MATRIX_TICKET_URL || null;
 
 /** Distinct group names in use, for suggestions. */
 export const groupNames = (rows: RepoRow[]) =>
@@ -175,6 +186,7 @@ export type RepoConfig = {
   envs: string[];
   remote: string;
   ticketPattern: string;
+  ticketUrl: string | null;
   doneEnvs: string[];
   group: string | null;
   tags: string[];
@@ -184,7 +196,8 @@ export type RepoConfig = {
 export async function updateRepo(id: number, input: RepoConfig): Promise<RepoRow | undefined> {
   const { rows } = await pool.query<RepoRow>(
     `update repo set name = $2, path = $3, envs = $4::text[], remote = $5,
-       ticket_pattern = $6, done_envs = $7::text[], group_name = $8, tags = $9::text[]
+       ticket_pattern = $6, done_envs = $7::text[], group_name = $8, tags = $9::text[],
+       ticket_url = $10
      where id = $1 returning *`,
     [
       id,
@@ -196,6 +209,7 @@ export async function updateRepo(id: number, input: RepoConfig): Promise<RepoRow
       input.doneEnvs,
       input.group,
       input.tags,
+      input.ticketUrl,
     ],
   );
   return rows[0];

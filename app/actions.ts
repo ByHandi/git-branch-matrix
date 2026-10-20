@@ -25,6 +25,14 @@ import { normalizeTags } from "@/lib/tags";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+/** An issue-tracker link must be http(s) and say where the ticket ID goes. */
+function ticketUrlError(url: string): string | null {
+  if (!url) return null;
+  if (!/^https?:\/\//.test(url)) return "ticket URL must start with http:// or https://";
+  if (!url.includes("{ticket}")) return "ticket URL needs {ticket} where the ticket ID goes";
+  return null;
+}
+
 export async function addRepoAction(input: {
   name: string;
   path: string;
@@ -61,17 +69,25 @@ export async function addRepoAction(input: {
   return { ok: true };
 }
 
-export async function updateRepoAction(id: number, input: RepoConfig): Promise<ActionResult> {
-  const name = input.name.trim();
-  const path = input.path.trim();
-  if (!name || !path) return { ok: false, error: "name and path are required" };
-  if (!existsSync(path)) return { ok: false, error: `folder not found: ${path}` };
-  if (!input.envs.length) return { ok: false, error: "at least one environment branch is needed" };
+/** What is wrong with an edited repo config, or null when it can be saved. */
+function configError(input: RepoConfig, name: string, path: string): string | null {
+  if (!name || !path) return "name and path are required";
+  if (!existsSync(path)) return `folder not found: ${path}`;
+  if (!input.envs.length) return "at least one environment branch is needed";
   try {
     new RegExp(input.ticketPattern);
   } catch {
-    return { ok: false, error: "ticket pattern is not a valid regex" };
+    return "ticket pattern is not a valid regex";
   }
+  return ticketUrlError(input.ticketUrl?.trim() ?? "");
+}
+
+export async function updateRepoAction(id: number, input: RepoConfig): Promise<ActionResult> {
+  const name = input.name.trim();
+  const path = input.path.trim();
+  const ticketUrl = input.ticketUrl?.trim() ?? "";
+  const error = configError(input, name, path);
+  if (error) return { ok: false, error };
 
   try {
     const row = await updateRepo(id, {
@@ -80,6 +96,7 @@ export async function updateRepoAction(id: number, input: RepoConfig): Promise<A
       path,
       remote: input.remote.trim() || DEFAULTS.remote,
       ticketPattern: input.ticketPattern.trim() || DEFAULTS.ticketPattern,
+      ticketUrl: ticketUrl || null,
       group: input.group?.trim() || null,
       tags: normalizeTags(input.tags),
     });

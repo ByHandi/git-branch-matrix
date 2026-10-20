@@ -116,7 +116,8 @@ function ScanRepos({ onDone }: { onDone: () => void }) {
 
   return (
     <>
-      <div className="space-y-3">
+      {/* the add dialog's scrolling body — see add-repo-dialog.tsx */}
+      <div className="-m-1 space-y-3 overflow-y-auto p-1">
         <InputText
           label="Folder to scan"
           value={root}

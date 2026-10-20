@@ -251,6 +251,23 @@ dimmed — they still show progress, they just do not gate completion.
    commit author and are labelled "(from merge commit)" in the detail panel.
 5. **Postgres** — notes, status, and tickets that appear in no branch name at all.
 
+## Linking tickets to Jira (or any tracker)
+
+Give ticket IDs a link to your issue tracker and they get an ↗ icon — in a repo's table, in the
+ticket panel and on Tickets — that opens the ticket in a new tab. The link is a URL with
+`{ticket}` where the ID goes:
+
+```
+https://your-org.atlassian.net/browse/{ticket}      # Jira
+https://linear.app/your-team/issue/{ticket}          # Linear
+https://youtrack.example.com/issue/{ticket}          # YouTrack
+```
+
+Set one default for every repo with `BRANCH_MATRIX_TICKET_URL` (in `.env.local` / `.env.docker`),
+and override it per repo under **Edit → Ticket URL** when a repo's tickets live elsewhere. Rows
+without a ticket ID never get a link. On Tickets, a ticket found in several repos uses the first of
+them that has a link.
+
 ## Opening a pull request
 
 An environment a ticket has not reached yet shows `·`; hovering turns it into **+ PR**, which

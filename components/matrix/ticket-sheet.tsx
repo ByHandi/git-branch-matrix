@@ -5,7 +5,8 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import Ago from "./ago";
-import { branchPrUrl, ticketLabel } from "./shared";
+import { branchPrUrl, ticketHref, ticketLabel } from "./shared";
+import TicketLink from "./ticket-link";
 
 import { saveNoteAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -158,7 +159,10 @@ function TicketSheet({ open, onOpenChange, model, ticket }: Props) {
         {model && ticket && (
           <>
             <SheetHeader>
-              <SheetTitle className="font-mono">{ticketLabel(ticket.id)}</SheetTitle>
+              <SheetTitle className="font-mono">
+                {ticketLabel(ticket.id)}
+                <TicketLink href={ticketHref(model, ticket)} className="ml-2" />
+              </SheetTitle>
               <SheetDescription>
                 {model.repoName} · <Ago iso={ticket.date} prefix="last commit " />
               </SheetDescription>

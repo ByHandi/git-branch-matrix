@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import Ago from "./ago";
 import { useMatrix, useRegisterRepos } from "./matrix-context";
 import { PageFilters, RefreshButton } from "./page-filters";
-import { filterTickets, ticketLabel } from "./shared";
+import { filterTickets, ticketHref, ticketLabel } from "./shared";
+import TicketLink from "./ticket-link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -74,6 +75,10 @@ function crossTickets(models: RepoView[]): CrossTicket[] {
     String(b.date ?? "").localeCompare(String(a.date ?? "")),
   );
 }
+
+/** The first repo that links its tickets anywhere — repos sharing a ticket share its tracker. */
+const crossHref = (cross: CrossTicket) =>
+  cross.entries.map((e) => ticketHref(e.model, e.ticket)).find(Boolean) ?? null;
 
 function Status({ cross }: { cross: CrossTicket }) {
   const total = cross.entries.length;
@@ -200,6 +205,7 @@ function TicketsView({ models }: { models: RepoView[] }) {
                 <TableRow key={cross.id}>
                   <TableCell className="pl-4 align-top font-mono text-xs font-semibold">
                     {ticketLabel(cross.id)}
+                    <TicketLink href={crossHref(cross)} />
                   </TableCell>
                   <TableCell className="align-top">
                     <Status cross={cross} />

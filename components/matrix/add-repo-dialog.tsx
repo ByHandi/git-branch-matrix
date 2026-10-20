@@ -119,7 +119,13 @@ function AddRepoDialog() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className={mode === "scan" ? "sm:max-w-xl" : "sm:max-w-md"}>
+      {/* never taller than the screen: header, tabs and Save stay put, the form scrolls between them */}
+      <DialogContent
+        className={cn(
+          "max-h-[calc(100dvh-2rem)] grid-rows-[auto_auto_minmax(0,1fr)_auto]",
+          mode === "scan" ? "sm:max-w-xl" : "sm:max-w-md",
+        )}
+      >
         <DialogHeader>
           <DialogTitle>Add repo</DialogTitle>
           <DialogDescription>
@@ -159,7 +165,8 @@ function AddRepoDialog() {
           />
         ) : (
           <>
-            <div className="space-y-3">
+            {/* -m-1 p-1 keeps focus rings clear of the scroll clip */}
+            <div className="-m-1 space-y-3 overflow-y-auto p-1">
               <div className="space-y-2">
                 <InputText
                   required

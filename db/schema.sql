@@ -52,3 +52,7 @@ alter table repo add column if not exists pinned boolean not null default false;
 
 -- migration: free-form tags, for filtering across groups
 alter table repo add column if not exists tags text[] not null default '{}';
+
+-- migration: link ticket IDs to an issue tracker. A URL with {ticket} in it, e.g.
+-- https://acme.atlassian.net/browse/{ticket}; null falls back to BRANCH_MATRIX_TICKET_URL.
+alter table repo add column if not exists ticket_url text;

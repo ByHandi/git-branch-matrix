@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 
 import "server-only";
 
-import { type RepoRow, type RepoSettings, notesFor, toSettings } from "@/lib/db";
+import { type RepoRow, type RepoSettings, notesFor, ticketUrlFor, toSettings } from "@/lib/db";
 import { GitError, type RepoModel, buildModel, lastFetchedAt } from "@/lib/git";
 
 export type RepoView = RepoModel & {
@@ -11,6 +11,8 @@ export type RepoView = RepoModel & {
   configuredEnvs: string[];
   /** last `git fetch` in this clone; null when it has never been fetched */
   fetchedAt: string | null;
+  /** issue-tracker link with `{ticket}` in it, or null when ticket IDs link nowhere */
+  ticketUrl: string | null;
   settings: RepoSettings;
 };
 
@@ -18,6 +20,7 @@ const fromRow = (row: RepoRow) => ({
   repoId: row.id,
   repoName: row.name,
   configuredEnvs: row.envs,
+  ticketUrl: ticketUrlFor(row),
   settings: toSettings(row),
 });
 

@@ -21,9 +21,11 @@ import {
   prTarget,
   sortTickets,
   stuck,
+  ticketHref,
   ticketLabel,
 } from "./shared";
 import { TagChip } from "./tags";
+import TicketLink from "./ticket-link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -193,7 +195,7 @@ function RepoCard(props: Props) {
           <RefreshButton />
           <PinToggle settings={model.settings} />
           <EditRepoDialog settings={model.settings} groups={groups} tags={tagSuggestions}>
-            <Tooltip description={`Edit ${model.repo}`}>
+            <Tooltip description={`Edit ${model.repoName}`}>
               <Button size="icon-sm" variant="ghost">
                 <PencilLine className="size-4" />
               </Button>
@@ -271,6 +273,7 @@ function RepoCard(props: Props) {
                     >
                       {ticketLabel(ticket.id)}
                     </span>
+                    <TicketLink href={ticketHref(model, ticket)} />
                     {ticket.untracked && (
                       <Badge variant="outline" className="ml-2">
                         no ticket

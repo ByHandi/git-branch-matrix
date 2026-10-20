@@ -49,6 +49,7 @@ function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children 
   const [doneEnvs, setDoneEnvs] = useState(settings.doneEnvs.join(", "));
   const [remote, setRemote] = useState(settings.remote);
   const [pattern, setPattern] = useState(settings.ticketPattern);
+  const [ticketUrl, setTicketUrl] = useState(settings.ticketUrl ?? "");
   const [saving, startSave] = useTransition();
   const [removing, startRemove] = useTransition();
 
@@ -62,6 +63,7 @@ function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children 
     setDoneEnvs(settings.doneEnvs.join(", "));
     setRemote(settings.remote);
     setPattern(settings.ticketPattern);
+    setTicketUrl(settings.ticketUrl ?? "");
   };
 
   const save = () =>
@@ -75,6 +77,7 @@ function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children 
         doneEnvs: split(doneEnvs),
         remote,
         ticketPattern: pattern,
+        ticketUrl,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -114,7 +117,8 @@ function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children 
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      {/* never taller than the screen: header and Save stay put, the fields scroll between them */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit {settings.name}</DialogTitle>
           <DialogDescription>
@@ -122,7 +126,8 @@ function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        {/* -m-1 p-1 keeps focus rings clear of the scroll clip */}
+        <div className="-m-1 space-y-3 overflow-y-auto p-1">
           <InputText required label="Name" value={name} onChange={(e) => setName(e.target.value)} />
           <InputText
             required
@@ -152,7 +157,7 @@ function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children 
               suggestions={knownTags}
             />
             <p className="text-xs text-muted-foreground">
-              Any number, e.g. frontend, client-x. Filter by them from the header.
+              Any number, e.g. frontend, client-x. Filter by them on the overview and Tickets.
             </p>
           </div>
           <InputText
@@ -173,6 +178,13 @@ function EditRepoDialog({ settings, groups = [], tags: knownTags = [], children 
             description="Regex used to find ticket IDs in branch names and commit messages."
             value={pattern}
             onChange={(e) => setPattern(e.target.value)}
+          />
+          <InputText
+            label="Ticket URL"
+            placeholder="https://your-org.atlassian.net/browse/{ticket}"
+            description="Issue tracker URL with {ticket} where the ID goes. Empty uses BRANCH_MATRIX_TICKET_URL, if set."
+            value={ticketUrl}
+            onChange={(e) => setTicketUrl(e.target.value)}
           />
         </div>
 
