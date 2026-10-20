@@ -9,6 +9,7 @@ your local git clones. Multi-repo.
 
 ```sh
 npm install
+cp .env.example .env.local   # every key is optional; set BRANCH_MATRIX_DB for your Postgres
 npm run db:init          # createdb branch_matrix + apply db/schema.sql
 npm run dev              # http://localhost:4321
 ```
