@@ -58,6 +58,14 @@ export async function listDir(requested?: string): Promise<Listing> {
 const SCAN_SKIP = new Set(["node_modules", "vendor", "Library", "Applications"]);
 const SCAN_MAX_DIRS = 5000;
 
+/** Subfolders of `dir` worth descending into while scanning. */
+async function scanChildren(dir: string) {
+  const children = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  return children
+    .filter((d) => d.isDirectory() && !d.name.startsWith(".") && !SCAN_SKIP.has(d.name))
+    .map((d) => resolve(dir, d.name));
+}
+
 /**
  * Every git repo under `requested`, at most `maxDepth` folders down — enough for
  * ~/projects/<group>/<repo>. A repo is a leaf: its subfolders are not searched,
@@ -73,26 +81,16 @@ export async function findRepos(requested?: string, maxDepth = 3) {
   let visited = 0;
   let truncated = false;
 
-  for (let depth = 0; depth <= maxDepth && level.length; depth++) {
+  for (let depth = 0; depth <= maxDepth && level.length && !truncated; depth++) {
     const next: string[] = [];
     for (const dir of level) {
       if (++visited > SCAN_MAX_DIRS) {
         truncated = true;
         break;
       }
-      if (await isDir(resolve(dir, ".git"))) {
-        repos.push(dir);
-        continue;
-      }
-      if (depth === maxDepth) continue;
-      const children = await readdir(dir, { withFileTypes: true }).catch(() => []);
-      for (const d of children) {
-        if (d.isDirectory() && !d.name.startsWith(".") && !SCAN_SKIP.has(d.name)) {
-          next.push(resolve(dir, d.name));
-        }
-      }
+      if (await isDir(resolve(dir, ".git"))) repos.push(dir);
+      else if (depth < maxDepth) next.push(...(await scanChildren(dir)));
     }
-    if (truncated) break;
     level = next;
   }
 

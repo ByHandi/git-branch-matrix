@@ -43,6 +43,14 @@ function stageOf(model: RepoView, ticket: Ticket) {
   return stage;
 }
 
+/** Fold one repo's copy of a ticket into the cross-repo row. */
+function addEntry(cross: CrossTicket, model: RepoView, ticket: Ticket) {
+  cross.entries.push({ model, ticket, stage: stageOf(model, ticket) });
+  if (ticket.done) cross.doneIn++;
+  for (const a of ticket.authors) if (!cross.authors.includes(a)) cross.authors.push(a);
+  if (ticket.date && (!cross.date || ticket.date > cross.date)) cross.date = ticket.date;
+}
+
 /** One entry per ticket id, collecting that ticket from every repo it appears in. */
 function crossTickets(models: RepoView[]): CrossTicket[] {
   const byId = new Map<string, CrossTicket>();
@@ -57,10 +65,7 @@ function crossTickets(models: RepoView[]): CrossTicket[] {
         authors: [],
         date: null,
       };
-      cross.entries.push({ model, ticket, stage: stageOf(model, ticket) });
-      if (ticket.done) cross.doneIn++;
-      for (const a of ticket.authors) if (!cross.authors.includes(a)) cross.authors.push(a);
-      if (ticket.date && (!cross.date || ticket.date > cross.date)) cross.date = ticket.date;
+      addEntry(cross, model, ticket);
       byId.set(ticket.id, cross);
     }
   }

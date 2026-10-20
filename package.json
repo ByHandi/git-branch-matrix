@@ -13,7 +13,8 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "db:init": "createdb branch_matrix 2>/dev/null; psql -d branch_matrix -f db/schema.sql",
-    "docker:up": "docker compose up -d --build"
+    "docker:up": "docker compose up -d --build",
+    "prepare": "husky"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -45,10 +46,20 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.19",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-sonarjs": "^4.2.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "description": "Git Branch Matrix — track tickets against environments, straight from git"
+  "description": "Git Branch Matrix — track tickets against environments, straight from git",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix --no-warn-ignored"
+    ],
+    "*.{json,css,md,mjs,yml,yaml}": "prettier --write"
+  }
 }

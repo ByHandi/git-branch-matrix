@@ -268,37 +268,27 @@ function makeExtractor(pattern: string) {
   };
 }
 
-/** Build the ticket × environment model for one repo. */
-export async function buildModel(
-  repoPath: string,
-  options: Partial<RepoConfig> = {},
-): Promise<RepoModel> {
-  const cfg = { ...DEFAULTS, ...options };
-  const repo = await toplevel(repoPath);
-  const overlay = options.overlay ?? {};
-  const extract = makeExtractor(cfg.ticketPattern);
+type Extractor = ReturnType<typeof makeExtractor>;
+type EnvRef = { name: string; ref: string };
+type BranchInfo = { name: string; sha: string; date: string; author: string };
 
-  const envRefs: { name: string; ref: string }[] = [];
+/** The configured env branches that exist in this repo, and the ones that don't. */
+async function resolveEnvs(repo: string, remote: string, envs: readonly string[]) {
+  const envRefs: EnvRef[] = [];
   const missingEnvs: string[] = [];
-  for (const name of cfg.envs) {
-    const found = await resolveRef(repo, cfg.remote, name);
+  for (const name of envs) {
+    const found = await resolveRef(repo, remote, name);
     if (found) envRefs.push({ name, ref: found.ref });
     else missingEnvs.push(name);
   }
   if (!envRefs.length) {
-    throw new GitError(`no environment branch found in ${repo}: ${cfg.envs.join(", ")}`);
+    throw new GitError(`no environment branch found in ${repo}: ${envs.join(", ")}`);
   }
+  return { envRefs, missingEnvs };
+}
 
-  const envNames = new Set(envRefs.map((e) => e.name));
-  const remoteInfo = parseRemoteUrl(
-    (await git(repo, ["remote", "get-url", cfg.remote], true)).trim(),
-  );
-  const [allBranches, mergedSets] = await Promise.all([
-    listBranches(repo, cfg.remote),
-    Promise.all(envRefs.map(async (e) => [e.name, await mergedInto(repo, e.ref)] as const)),
-  ]);
-  const merged = new Map(mergedSets);
-
+/** Branches by name, created empty the first time a name comes up from any source. */
+function branchRegistry() {
   const branches = new Map<string, Branch>();
   const touch = (name: string): Branch => {
     let b = branches.get(name);
@@ -317,50 +307,53 @@ export async function buildModel(
     }
     return b;
   };
+  return { branches, touch };
+}
 
-  for (const [name, info] of allBranches) {
-    if (envNames.has(name)) continue;
-    const b = touch(name);
-    b.live = true;
-    b.date = info.date;
-    b.author = info.author;
-    b.sha = info.sha;
-    b.tickets = extract(name);
-    for (const e of envRefs) {
-      const set = merged.get(e.name)!;
-      if (set.has(name) || set.has(`${cfg.remote}/${name}`)) b.envs[e.name] ??= {};
-    }
+/** A branch that still exists: its tip, and every env it is already merged into. */
+function applyLiveBranch(
+  b: Branch,
+  info: BranchInfo,
+  envRefs: EnvRef[],
+  merged: Map<string, Set<string>>,
+  remote: string,
+  extract: Extractor,
+) {
+  b.live = true;
+  b.date = info.date;
+  b.author = info.author;
+  b.sha = info.sha;
+  b.tickets = extract(b.name);
+  for (const e of envRefs) {
+    const set = merged.get(e.name)!;
+    if (set.has(b.name) || set.has(`${remote}/${b.name}`)) b.envs[e.name] ??= {};
   }
+}
 
-  const scans = await Promise.all(
-    envRefs.map(async (e) => [e.name, await scanMerges(repo, e.ref, cfg.scanLimit)] as const),
-  );
-
-  const tipAuthors = await authorsOf(
-    repo,
-    scans.flatMap(([, entries]) => entries.map((e) => e.secondParent ?? "")),
-  );
-
-  for (const [envName, entries] of scans) {
-    for (const entry of entries) {
-      const name = entry.branch ?? (entry.pr ? `#${entry.pr}` : null);
-      if (!name || envNames.has(name)) continue;
-      const b = touch(name);
-      b.date ??= entry.date;
-      if (!b.author) {
-        const tipAuthor = entry.secondParent ? tipAuthors.get(entry.secondParent) : undefined;
-        // squash merges have no second parent, so the merge author is all we have
-        b.author = tipAuthor ?? entry.mergedBy ?? null;
-        b.authorFromMerge = !tipAuthor;
-      }
-      b.tickets = [...new Set([...b.tickets, ...extract(entry.branch, entry.subject, entry.body)])];
-      const cell = (b.envs[envName] ??= {});
-      if (entry.pr && !cell.pr) cell.pr = entry.pr;
-      if (!cell.date || entry.date < cell.date) cell.date = entry.date;
-      if (entry.kind === "squash") b.squashed = true;
-    }
+/** One merge commit on an env branch, folded into the branch it merged. */
+function applyMerge(
+  b: Branch,
+  envName: string,
+  entry: MergeEntry,
+  tipAuthors: Map<string, string>,
+  extract: Extractor,
+) {
+  b.date ??= entry.date;
+  if (!b.author) {
+    const tipAuthor = entry.secondParent ? tipAuthors.get(entry.secondParent) : undefined;
+    // squash merges have no second parent, so the merge author is all we have
+    b.author = tipAuthor ?? entry.mergedBy ?? null;
+    b.authorFromMerge = !tipAuthor;
   }
+  b.tickets = [...new Set([...b.tickets, ...extract(entry.branch, entry.subject, entry.body)])];
+  const cell = (b.envs[envName] ??= {});
+  if (entry.pr && !cell.pr) cell.pr = entry.pr;
+  if (!cell.date || entry.date < cell.date) cell.date = entry.date;
+  if (entry.kind === "squash") b.squashed = true;
+}
 
+/** Notes, statuses and hand-added tickets saved in the app. */
+function applyOverlay(touch: (name: string) => Branch, overlay: Record<string, BranchOverlay>) {
   for (const [name, meta] of Object.entries(overlay)) {
     const b = touch(name);
     if (meta.tickets?.length) b.tickets = [...new Set([...b.tickets, ...meta.tickets])];
@@ -368,16 +361,27 @@ export async function buildModel(
     b.status = meta.status ?? null;
     b.manualTickets = meta.tickets ?? [];
   }
+}
 
-  for (const b of branches.values()) b.combined = b.tickets.length > 1;
+/** Whether `cell` is the earlier merge into an env than `prev` — the one the ticket shows. */
+function isEarlier(cell: MergeCell, prev: MergeCell | undefined) {
+  return !prev || Boolean(cell.date && (!prev.date || cell.date < prev.date));
+}
 
-  const envList = envRefs.map((e) => e.name);
-  // fall back to every env when none of the configured done envs exist here
-  const doneEnvs = cfg.doneEnvs.filter((e) => envNames.has(e));
-  const effectiveDoneEnvs = doneEnvs.length ? doneEnvs : envList;
+function addBranchToTicket(t: Ticket, b: Branch) {
+  t.branches.push(b.name);
+  if (b.author && !t.authors.includes(b.author)) t.authors.push(b.author);
+  if (b.combined) t.combined = true;
+  if (!t.date || (b.date && b.date > t.date)) t.date = b.date;
+  for (const [env, cell] of Object.entries(b.envs)) {
+    if (isEarlier(cell, t.envs[env])) t.envs[env] = { ...cell, via: b.name };
+  }
+}
+
+/** Regroup branches by ticket; a branch with no ticket id stands as its own row. */
+function groupTickets(branches: Iterable<Branch>) {
   const tickets = new Map<string, Ticket>();
-
-  for (const b of branches.values()) {
+  for (const b of branches) {
     const ids = b.tickets.length ? b.tickets : [`(no-ticket) ${b.name}`];
     for (const id of ids) {
       let t = tickets.get(id);
@@ -395,20 +399,65 @@ export async function buildModel(
         };
         tickets.set(id, t);
       }
-      t.branches.push(b.name);
-      if (b.author && !t.authors.includes(b.author)) t.authors.push(b.author);
-      if (b.combined) t.combined = true;
-      if (!t.date || (b.date && b.date > t.date)) t.date = b.date;
-      for (const [env, cell] of Object.entries(b.envs)) {
-        const prev = t.envs[env];
-        if (!prev || (cell.date && (!prev.date || cell.date < prev.date))) {
-          t.envs[env] = { ...cell, via: b.name };
-        }
-      }
+      addBranchToTicket(t, b);
+    }
+  }
+  return tickets;
+}
+
+/** Build the ticket × environment model for one repo. */
+export async function buildModel(
+  repoPath: string,
+  options: Partial<RepoConfig> = {},
+): Promise<RepoModel> {
+  const cfg = { ...DEFAULTS, ...options };
+  const repo = await toplevel(repoPath);
+  const extract = makeExtractor(cfg.ticketPattern);
+  const { envRefs, missingEnvs } = await resolveEnvs(repo, cfg.remote, cfg.envs);
+
+  const envNames = new Set(envRefs.map((e) => e.name));
+  const remoteInfo = parseRemoteUrl(
+    (await git(repo, ["remote", "get-url", cfg.remote], true)).trim(),
+  );
+  const [allBranches, mergedSets] = await Promise.all([
+    listBranches(repo, cfg.remote),
+    Promise.all(envRefs.map(async (e) => [e.name, await mergedInto(repo, e.ref)] as const)),
+  ]);
+  const merged = new Map(mergedSets);
+  const { branches, touch } = branchRegistry();
+
+  for (const [name, info] of allBranches) {
+    if (envNames.has(name)) continue;
+    applyLiveBranch(touch(name), info, envRefs, merged, cfg.remote, extract);
+  }
+
+  const scans = await Promise.all(
+    envRefs.map(async (e) => [e.name, await scanMerges(repo, e.ref, cfg.scanLimit)] as const),
+  );
+
+  const tipAuthors = await authorsOf(
+    repo,
+    scans.flatMap(([, entries]) => entries.map((e) => e.secondParent ?? "")),
+  );
+
+  for (const [envName, entries] of scans) {
+    for (const entry of entries) {
+      const name = entry.branch ?? (entry.pr ? `#${entry.pr}` : null);
+      if (!name || envNames.has(name)) continue;
+      applyMerge(touch(name), envName, entry, tipAuthors, extract);
     }
   }
 
-  const ticketList = [...tickets.values()].map((t) => ({
+  applyOverlay(touch, options.overlay ?? {});
+
+  for (const b of branches.values()) b.combined = b.tickets.length > 1;
+
+  const envList = envRefs.map((e) => e.name);
+  // fall back to every env when none of the configured done envs exist here
+  const doneEnvs = cfg.doneEnvs.filter((e) => envNames.has(e));
+  const effectiveDoneEnvs = doneEnvs.length ? doneEnvs : envList;
+
+  const ticketList = [...groupTickets(branches.values()).values()].map((t) => ({
     ...t,
     reach: envList.filter((e) => t.envs[e]).length,
     done: effectiveDoneEnvs.every((e) => t.envs[e]),
